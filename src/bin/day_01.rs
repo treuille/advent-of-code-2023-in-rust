@@ -8,16 +8,16 @@ fn main() {
 
     // Solve puzzle 1
     let mut digits = vec![
-        (String::from("0"), 0),
-        (String::from("1"), 1),
-        (String::from("2"), 2),
-        (String::from("3"), 3),
-        (String::from("4"), 4),
-        (String::from("5"), 5),
-        (String::from("6"), 6),
-        (String::from("7"), 7),
-        (String::from("8"), 8),
-        (String::from("9"), 9),
+        ("0".to_owned(), 0),
+        ("1".to_owned(), 1),
+        ("2".to_owned(), 2),
+        ("3".to_owned(), 3),
+        ("4".to_owned(), 4),
+        ("5".to_owned(), 5),
+        ("6".to_owned(), 6),
+        ("7".to_owned(), 7),
+        ("8".to_owned(), 8),
+        ("9".to_owned(), 9),
     ];
     let sol_1a = solve(input.lines(), &digits);
     let correct_sol_1a: usize = 54159;
@@ -28,16 +28,16 @@ fn main() {
 
     // Puzzle 2 is the same as puzzle 1, but with spelled out digits
     digits.extend(vec![
-        (String::from("zero"), 0),
-        (String::from("one"), 1),
-        (String::from("two"), 2),
-        (String::from("three"), 3),
-        (String::from("four"), 4),
-        (String::from("five"), 5),
-        (String::from("six"), 6),
-        (String::from("seven"), 7),
-        (String::from("eight"), 8),
-        (String::from("nine"), 9),
+        ("zero".to_owned(), 0),
+        ("one".to_owned(), 1),
+        ("two".to_owned(), 2),
+        ("three".to_owned(), 3),
+        ("four".to_owned(), 4),
+        ("five".to_owned(), 5),
+        ("six".to_owned(), 6),
+        ("seven".to_owned(), 7),
+        ("eight".to_owned(), 8),
+        ("nine".to_owned(), 9),
     ]);
     let sol_1b = solve(input.lines(), &digits);
     let correct_sol_1b: usize = 53866;
