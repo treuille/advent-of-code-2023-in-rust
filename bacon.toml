@@ -1,0 +1,5 @@
+[[process]]
+name = "Day 01"
+trigger = { on = "src/bin/day_01.rs" }
+run = "cargo run --bin day_01"
+stdio = "inherit"
