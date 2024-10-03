@@ -21,10 +21,10 @@ fn main() {
     ];
     let sol_1a = solve(input.lines(), &digits);
     let correct_sol_1a: usize = 54159;
-    println!(
-        "* 1A *\nMy solution: {sol_1a}\nCorrect solution: {correct_sol_1a}\nEqual: {}\n",
-        sol_1a == correct_sol_1a
-    );
+    println!("* 1A *");
+    println!("My solution: {sol_1a}");
+    println!("Correct solution: {correct_sol_1a}");
+    println!("Equal: {}\n", sol_1a == correct_sol_1a);
 
     // Puzzle 2 is the same as puzzle 1, but with spelled out digits
     digits.extend(vec![
@@ -41,18 +41,17 @@ fn main() {
     ]);
     let sol_1b = solve(input.lines(), &digits);
     let correct_sol_1b: usize = 53866;
-    println!(
-        "* 1B *\nMy solution: {sol_1b}\nCorrect solution: {correct_sol_1b}\nEqual: {}\n",
-        sol_1b == correct_sol_1b
-    );
+    println!("* 1B *");
+    println!("My solution: {sol_1b}");
+    println!("Correct solution: {correct_sol_1b}");
+    println!("Equal: {}\n", sol_1b == correct_sol_1b);
 }
 
 /// Returns the first digit (as defined in the `digits` map) found in the line
 fn find_first_digit(line: &str, digits: &[(String, usize)]) -> usize {
     digits
         .iter()
-        .filter_map(|(digit_str, digit)| line.find(digit_str).map(|indx| (indx, *digit)))
-        .min()
+        .min_by_key(|(digit_str, _)| line.find(digit_str).unwrap_or(usize::MAX))
         .unwrap()
         .1
 }
