@@ -4,9 +4,10 @@
 
 fn main() {
     // This is the input string
-    let input = include_str!("../../puzzle_inputs/day_01.txt");
+    let input = include_str!("../../puzzle_inputs/day_02.txt");
 
     println!("input length: {}", input.len());
+    println!("input:\n{}", input);
 
     // Dummy solution to 2a
     let sol_2a = 123;
