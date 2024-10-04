@@ -3,14 +3,8 @@
 const _INCORRECT: usize = 549927;
 
 fn main() {
-    // This is the input string
+    // Parse the input
     let input = include_str!("../../puzzle_inputs/day_03.txt");
-    //let input = include_str!("../../puzzle_inputs/day_03_test.txt");
-    //let input = include_str!("../../puzzle_inputs/day_03_my_test.txt");
-
-    println!("first line: \"{}\"", input.lines().next().unwrap());
-    println!("last line: \"{}\"", input.lines().last().unwrap());
-
     let (parts, symbols) = parse_input(input);
 
     //for (i, part) in parts.iter().enumerate() {
@@ -36,6 +30,18 @@ fn main() {
         }
     }
     println!("part_sum: {}", part_sum);
+
+    let mut gear_ratio_sum = 0;
+    for symbol in symbols.iter() {
+        let adjacent_parts: Vec<&Part> = parts
+            .iter()
+            .filter(|part| part.adjacent_to(symbol))
+            .collect();
+        if adjacent_parts.len() == 2 {
+            gear_ratio_sum += adjacent_parts[0].part_num * adjacent_parts[1].part_num;
+        }
+    }
+    println!("gear_ratio_sum: {}", gear_ratio_sum);
 
     // Now we have the parts and symbols, we can start solving the puzzle
 
