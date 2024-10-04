@@ -1,9 +1,3 @@
-//use std::collections::HashMap;
-
-// Correct answers
-// part_sum:
-// gear_ratio_sum:
-
 fn main() {
     // Parse the input
     let input = include_str!("../../puzzle_inputs/day_03.txt");
@@ -58,83 +52,84 @@ impl Part {
 }
 
 fn solve_3a(parts: &[Part], symbols: &[Symbol]) -> usize {
-    let mut part_sum = 0;
-    for part in parts.iter() {
-        for symbol in symbols.iter() {
-            if part.adjacent_to(symbol) {
-                part_sum += part.part_num;
-                //println!("{:?} adjacent to {:?}", part, symbol);
-                //println!("part_sum: {}", part_sum);
-                break;
-            }
-        }
-    }
-    part_sum
+    parts
+        .iter()
+        .filter_map(|part| {
+            symbols
+                .iter()
+                .find(|symbol| part.adjacent_to(symbol))
+                .map(|_| part.part_num)
+        })
+        .sum()
 }
 
 fn solve_3b(parts: &[Part], symbols: &[Symbol]) -> usize {
-    let mut gear_ratio_sum = 0;
-    for symbol in symbols.iter() {
-        let adjacent_parts: Vec<&Part> = parts
-            .iter()
-            .filter(|part| part.adjacent_to(symbol))
-            .collect();
-        if adjacent_parts.len() == 2 {
-            gear_ratio_sum += adjacent_parts[0].part_num * adjacent_parts[1].part_num;
-        }
-    }
-    gear_ratio_sum
+    symbols
+        .iter()
+        .filter_map(|symbol| {
+            let adjacent_parts: Vec<&Part> = parts
+                .iter()
+                .filter(|part| part.adjacent_to(symbol))
+                .collect();
+            (adjacent_parts.len() == 2)
+                .then(|| adjacent_parts[0].part_num * adjacent_parts[1].part_num)
+        })
+        .sum()
 }
 
-/// This is the state of the parser as we go through finding parts and symbols
 fn parse_input(input: &str) -> (Vec<Part>, Vec<Symbol>) {
     let mut parts: Vec<Part> = Vec::new();
     let mut symbols: Vec<Symbol> = Vec::new();
 
     for (y, line) in input.lines().enumerate() {
-        // As we go throu the input we need to keep track of the
-        // current part we are parsing.
+        // As we go through the input, keep track of the part we're parsing.
         let mut parsing_part: Option<Part> = None;
 
         for (x, c) in line.chars().enumerate() {
             match (&mut parsing_part, c) {
+                // Just finding a . is a no-op
                 (None, '.') => {
-                    // Just finding a . is a no-op
                     continue;
                 }
+
+                // We are at the start of a new part
                 (None, '0'..='9') => {
-                    // We are at the start of a new part
                     parsing_part = Some(Part {
                         part_num: c.to_digit(10).unwrap() as usize,
                         x,
                         y,
                     });
                 }
+
+                // We found a new symbol
                 (None, _) => {
-                    // We found a new symbol
                     symbols.push(Symbol { x, y });
                 }
+
+                // We've reached the end of a part
                 (Some(part), '.') => {
-                    // We've reached the end of a part
                     parts.push(part.clone());
                     parsing_part = None;
                 }
+
+                // We found another digit for this part
                 (Some(part), '0'..='9') => {
-                    // We found another digit for this part
                     parsing_part = Some(Part {
                         part_num: part.part_num * 10 + c.to_digit(10).unwrap() as usize,
                         x: part.x,
                         y: part.y,
                     });
                 }
+
+                // We've reached the end of a part and found a symbol
                 (Some(part), _) => {
-                    // We've reached the end of a part and found a symbol
                     parts.push(part.clone());
                     parsing_part = None;
                     symbols.push(Symbol { x, y });
-                } //_ => unreachable!("Impossible input sequence"),
+                }
             }
         }
+
         // Finally, if we are still parsing a part, add it to the list
         if let Some(part) = parsing_part {
             parts.push(part);
