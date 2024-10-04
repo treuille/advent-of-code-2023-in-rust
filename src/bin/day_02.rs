@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::write};
+use std::collections::HashMap;
 
 /// A `Reveal` is a sequence of (num_cubes, cube_color) tuples
 type Reveal = Vec<(usize, &'static str)>;
