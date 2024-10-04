@@ -3,6 +3,9 @@ name = "advent-of-code-2023-in-rust"
 version = "0.1.0"
 edition = "2021"
 
+# Specify a default binary to run if no --bin is specified
+default-run = "day_02"
+
 [dependencies]
 ndarray = "0.16.1"
 regex = "1.11.0"
