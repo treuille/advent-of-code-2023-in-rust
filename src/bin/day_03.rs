@@ -3,8 +3,6 @@ fn main() {
     let input = include_str!("../../puzzle_inputs/day_03.txt");
     let (parts, symbols) = parse_input(input);
 
-    // Now we have the parts and symbols, we can start solving the puzzle
-
     // Solve 3a
     let sol_3a: usize = solve_3a(&parts, &symbols);
     let correct_sol_3a: usize = 546312;
@@ -22,7 +20,6 @@ fn main() {
     println!("Equal: {}\n", sol_3b == correct_sol_3b);
 }
 
-/// A part somehwere on the grid
 #[derive(Clone)]
 struct Part {
     part_num: usize,
@@ -30,14 +27,12 @@ struct Part {
     y: usize,
 }
 
-/// A symbol on the grid
 struct Symbol {
     x: usize,
     y: usize,
 }
 
 impl Part {
-    /// Calculate the manhattan distance between this part and another part
     fn adjacent_to(&self, symbol: &Symbol) -> bool {
         // Parse part_num into a string
         let len = self.part_num.to_string().len();
