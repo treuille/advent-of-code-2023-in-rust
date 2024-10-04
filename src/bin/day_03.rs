@@ -34,14 +34,13 @@ struct Symbol {
 
 impl Part {
     fn adjacent_to(&self, symbol: &Symbol) -> bool {
-        // Parse part_num into a string
-        let len = self.part_num.to_string().len();
+        let part_len = self.part_num.to_string().len();
         let min_x = self.x.saturating_sub(1);
-        let max_x = self.x + len;
+        let max_x = self.x + part_len;
         let min_y = self.y.saturating_sub(1);
         let max_y = self.y + 1;
 
-        // Check if the symbol is within the bounds of the pa
+        // Adjacent symbols lie within this bounding box
         (min_x..=max_x).contains(&symbol.x) && (min_y..=max_y).contains(&symbol.y)
     }
 }
