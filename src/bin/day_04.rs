@@ -8,29 +8,14 @@ fn main() {
     let cards = parse_input(input);
     //println!("cards: {:?}", cards[0]);
     let mut all_points = 0;
-    let mut copies: Vec<usize> = vec![1];
-    //let get_copies = |i: usize| {
-    //    copies.resize(copies.len().max(i + 1), 0);
-    //    &copies[i]
-    //};
+    let mut copies: Vec<usize> = vec![1; cards.len()];
     for (i, card) in cards.iter().enumerate() {
-        //println!("card: {:?}", card);
-        //println!(
-        //    "intersection: {:?}",
-        //    card.winning_numbers.intersection(&card.your_numbers)
-        //);
         let winning_numbers = card
             .winning_numbers
             .intersection(&card.your_numbers)
             .count();
-
-        //println!("card_num: {}", i);
-        //println!("card: {:?}", card);
-        //println!("winnning_numbers: {:?}", winning_numbers);
-        copies.resize(copies.len().max(i + 1), 1);
         let i_count: usize = copies[i];
         for j in (i + 1)..(i + 1 + winning_numbers) {
-            copies.resize(copies.len().max(j + 1), 1);
             copies[j] += i_count;
         }
         //println!("copies: {:?}", copies);
@@ -38,7 +23,6 @@ fn main() {
         all_points += points;
     }
     println!("all_points: {}", all_points);
-    println!("copies: {:?}", copies);
     println!("copies sum: {:?}", copies.iter().sum::<usize>());
 
     //let (parts, symbols) = parse_input(input);
