@@ -1,11 +1,23 @@
 [[process]]
-name = "Day 01"
+name = "day_01"
 trigger = { on = "src/bin/day_01.rs" }
 run = "cargo run --bin day_01"
 stdio = "inherit"
 
 [[process]]
-name = "Day 02"
+name = "day_02"
 trigger = { on = "src/bin/day_02.rs" }
 run = "cargo run --bin day_02"
+stdio = "inherit"
+
+[[process]]
+name = "day_03"
+trigger = { on = "src/bin/day_03.rs" }
+run = "cargo run --bin day_03"
+stdio = "inherit"
+
+[[process]]
+name = "day_04"
+trigger = { on = "src/bin/day_04.rs" }
+run = "cargo run --bin day_04"
 stdio = "inherit"
