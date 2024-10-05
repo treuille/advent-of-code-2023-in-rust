@@ -1,9 +1,45 @@
+use std::collections::{/*HashMap, */ HashSet};
+
 fn main() {
     // Parse the input
     let input = include_str!("../../puzzle_inputs/day_04.txt");
-    println!("Input length: {}\n", input.len());
+    //let input = include_str!("../../puzzle_inputs/day_04_test.txt");
+    //println!("Input length: {}\n", input.len());
     let cards = parse_input(input);
-    println!("cards: {:?}", cards[0]);
+    //println!("cards: {:?}", cards[0]);
+    let mut all_points = 0;
+    let mut copies: Vec<usize> = vec![1];
+    //let get_copies = |i: usize| {
+    //    copies.resize(copies.len().max(i + 1), 0);
+    //    &copies[i]
+    //};
+    for (i, card) in cards.iter().enumerate() {
+        //println!("card: {:?}", card);
+        //println!(
+        //    "intersection: {:?}",
+        //    card.winning_numbers.intersection(&card.your_numbers)
+        //);
+        let winning_numbers = card
+            .winning_numbers
+            .intersection(&card.your_numbers)
+            .count();
+
+        //println!("card_num: {}", i);
+        //println!("card: {:?}", card);
+        //println!("winnning_numbers: {:?}", winning_numbers);
+        copies.resize(copies.len().max(i + 1), 1);
+        let i_count: usize = copies[i];
+        for j in (i + 1)..(i + 1 + winning_numbers) {
+            copies.resize(copies.len().max(j + 1), 1);
+            copies[j] += i_count;
+        }
+        //println!("copies: {:?}", copies);
+        let points = winning_numbers.checked_sub(1).map(|x| 1 << x).unwrap_or(0);
+        all_points += points;
+    }
+    println!("all_points: {}", all_points);
+    println!("copies: {:?}", copies);
+    println!("copies sum: {:?}", copies.iter().sum::<usize>());
 
     //let (parts, symbols) = parse_input(input);
     //
@@ -27,8 +63,8 @@ fn main() {
 #[allow(dead_code)]
 #[derive(Debug)]
 struct Card {
-    winning_numbers: Vec<usize>,
-    your_numbers: Vec<usize>,
+    winning_numbers: HashSet<usize>,
+    your_numbers: HashSet<usize>,
 }
 
 fn parse_input(input: &str) -> Vec<Card> {
@@ -37,7 +73,7 @@ fn parse_input(input: &str) -> Vec<Card> {
         .map(|line| {
             let card = line.split_once(": ").unwrap().1;
             let (winning_numbers, your_numbers) = card.split_once(" | ").unwrap();
-            println!("card: \"{card}\"");
+            //println!("card: \"{card}\"");
             //println!("winning_numbers: \"{winning_numbers}\"");
             //println!("your_numbers: \"{your_numbers}\"");
             Card {
