@@ -2,6 +2,8 @@ fn main() {
     // Parse the input
     let input = include_str!("../../puzzle_inputs/day_04.txt");
     println!("Input length: {}\n", input.len());
+    let cards = parse_input(input);
+    println!("cards: {:?}", cards[0]);
 
     //let (parts, symbols) = parse_input(input);
     //
@@ -20,4 +22,34 @@ fn main() {
     //println!("My solution: {sol_3b}");
     //println!("Correct solution: {correct_sol_3b}");
     //println!("Equal: {}\n", sol_3b == correct_sol_3b);
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+struct Card {
+    winning_numbers: Vec<usize>,
+    your_numbers: Vec<usize>,
+}
+
+fn parse_input(input: &str) -> Vec<Card> {
+    input
+        .lines()
+        .map(|line| {
+            let card = line.split_once(": ").unwrap().1;
+            let (winning_numbers, your_numbers) = card.split_once(" | ").unwrap();
+            println!("card: \"{card}\"");
+            //println!("winning_numbers: \"{winning_numbers}\"");
+            //println!("your_numbers: \"{your_numbers}\"");
+            Card {
+                winning_numbers: winning_numbers
+                    .split_whitespace()
+                    .map(|num| num.parse().unwrap())
+                    .collect(),
+                your_numbers: your_numbers
+                    .split_whitespace()
+                    .map(|num| num.parse().unwrap())
+                    .collect(),
+            }
+        })
+        .collect()
 }
