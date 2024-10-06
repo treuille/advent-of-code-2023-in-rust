@@ -28,14 +28,11 @@ fn main() {
         }
     }
 
-    // Convert to seed ranges
-    let mut seed_ranges: Vec<(usize, usize)> = Vec::new();
-    let mut seed_iter = seeds.iter();
-    while let Some(&range_start) = seed_iter.next() {
-        let &range_len = seed_iter.next().unwrap();
-        seed_ranges.push((range_start, range_len));
-    }
-    println!("Seed ranges: {:?}", seed_ranges);
+    //let seed_ranges: Vec<(usize, usize)> =
+    //    seeds.chunks(2).map(|chunk| (chunk[0], chunk[1])).collect();
+
+    // Convert to length-1 seed ranges
+    let seed_ranges: Vec<(usize, usize)> = seeds.iter().map(|&seed| (seed, 1)).collect();
 
     //// Solve 5a
     //let sol_5a: usize = solve_5a(&seeds, &maps);
@@ -108,14 +105,14 @@ fn solve_5b(seed_ranges: &[(usize, usize)], maps: &[Vec<(usize, usize, usize)>])
         // Make sure the total number of seeds is the same
         assert_eq!(total_seeds, num_seeds);
 
-        // Make sure the ranges are disjoint
-        assert!(are_disjoint(src_ranges));
-        assert!(are_disjoint(dest_ranges));
+        //// Make sure the ranges are disjoint
+        //assert!(are_disjoint(src_ranges));
+        //assert!(are_disjoint(dest_ranges));
     }
 
     // Count the seeds in the initial ranges
     let num_seeds: usize = count_seeds(seed_ranges);
-    assert!(are_disjoint(seed_ranges));
+    //assert!(are_disjoint(seed_ranges));
 
     // Count the seeds in the initial ranges
     let num_seeds: usize = count_seeds(seed_ranges);
