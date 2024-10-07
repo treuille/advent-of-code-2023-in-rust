@@ -1,6 +1,12 @@
 use std::cmp::Ordering;
 use std::fmt;
 
+// Correct answer A: 256448566
+
+// Todo:
+// - Hand = [u8; 5]
+// - Move everything over
+
 fn main() {
     //// Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_07.txt");
