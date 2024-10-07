@@ -84,8 +84,7 @@ fn solve(seed_ranges: &[SeedRange], maps: &[Map]) -> usize {
             for (range_start, range_len) in ranges_iter {
                 let range_end = range_start + range_len;
 
-                // Divide the range tino three segments from
-                // min(range_start, src_start) to max(range_end, src_end).
+                // Split `(range_start, range_end) union (src_start, src_end)` into 3 segments
                 let mut idx = [range_start, range_end, src_start, src_end];
                 idx.sort();
                 let segments = idx.iter().zip(idx.iter().skip(1));
