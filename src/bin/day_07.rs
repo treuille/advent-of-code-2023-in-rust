@@ -7,22 +7,8 @@ type Hand = [u8; 5];
 type Puzzle = Vec<(Hand, usize)>;
 
 fn main() {
-    //// Parse the input, counting the number of matches per card
-    let input = include_str!("../../puzzle_inputs/day_07.txt");
-    //let input = include_str!("../../puzzle_inputs/day_07_test.txt");
-    let mut input: Puzzle = parse_input(input.lines());
-
-    //println!("* Input *");
-    //for (hand, bid) in input.iter() {
-    //    println!(
-    //        "Hand: {}, Type: {:?}, Bid: {}",
-    //        to_string(hand),
-    //        HandType::from_hand(hand),
-    //        bid
-    //    );
-    //}
-
     // Solve 7a
+    let mut input: Puzzle = parse_input(include_str!("../../puzzle_inputs/day_07.txt"));
     let sol_7a: usize = solve(&mut input);
     let correct_sol_7a: usize = 256448566;
     println!("* 7a *");
@@ -30,23 +16,14 @@ fn main() {
     println!("Correct solution: {correct_sol_7a}");
     println!("Equal: {}\n", sol_7a == correct_sol_7a);
 
-    //println!("* Sorted Input *");
-    //for (hand, bid) in input.iter() {
-    //    println!(
-    //        "Hand: {}, Type: {:?}, Bid: {}",
-    //        to_string(hand),
-    //        HandType::from_hand(hand),
-    //        bid
-    //    );
-    //}
-
-    //// Solve 7b
-    //let sol_7b: usize = 56;
-    //let correct_sol_7b: usize = 79;
-    //println!("* 7b *");
-    //println!("My solution: {sol_7b}");
-    //println!("Correct solution: {correct_sol_7b}");
-    //println!("Equal: {}\n", sol_7b == correct_sol_7b);
+    // Solve 7b
+    convert_jacks_to_jokers(&mut input);
+    let sol_7b: usize = solve(&mut input);
+    let correct_sol_7b: usize = 254412181;
+    println!("* 7b *");
+    println!("My solution: {sol_7b}");
+    println!("Correct solution: {correct_sol_7b}");
+    println!("Equal: {}\n", sol_7b == correct_sol_7b);
 }
 
 fn solve(input: &mut Puzzle) -> usize {
@@ -72,22 +49,6 @@ fn to_hand(s: &str) -> Hand {
         })
         .collect();
     [hand[0], hand[1], hand[2], hand[3], hand[4]]
-}
-
-fn to_string(hand: &Hand) -> String {
-    hand.iter()
-        .map(|c| {
-            match c {
-                0 => '*', // <- 0 means Joker
-                10 => 'T',
-                11 => 'J', // <- 11 means Jack
-                12 => 'Q',
-                13 => 'K',
-                14 => 'A',
-                c => c.to_string().chars().next().unwrap(),
-            }
-        })
-        .collect()
 }
 
 #[derive(Eq, Ord, PartialEq, PartialOrd, Debug)]
@@ -124,74 +85,80 @@ impl HandType {
             counts[*card as usize] += 1;
         }
 
-        let mut pairs = 0;
-        let mut triples = 0;
-        let mut quads = 0;
-        let mut quints = 0;
-        for count in counts.iter() {
+        let jokers = counts[0];
+        let mut pairs: usize = 0;
+        let mut triples: usize = 0;
+        let mut quads: usize = 0;
+        let mut quints: usize = 0;
+        for count in &counts[2..] {
             match count {
                 0 | 1 => continue,
                 2 => pairs += 1,
                 3 => triples += 1,
                 4 => quads += 1,
                 5 => quints += 1,
-                _ => {
-                    println!("Invalid hand: {}", to_string(hand));
-                    println!("Counts: {:?}", counts);
-                    println!("Pairs: {}", pairs);
-                    println!("Triples: {}", triples);
-                    println!("Quads: {}", quads);
-                    println!("Quints: {}", quints);
-                    unreachable!("Cannot have more than 5 cards of the same label")
-                }
+                _ => unreachable!("Invalid hand: {:?}", hand),
             }
         }
 
-        match (pairs, triples, quads, quints) {
-            (0, 0, 0, 0) => HandType::HighCard,
-            (1, 0, 0, 0) => HandType::OnePair,
-            (2, 0, 0, 0) => HandType::TwoPair,
-            (0, 1, 0, 0) => HandType::ThreeOfAKind,
-            (0, 0, 1, 0) => HandType::FourOfAKind,
-            (0, 0, 0, 1) => HandType::FiveOfAKind,
-            (1, 1, 0, 0) => HandType::FullHouse,
-            _ => panic!("Invalid hand: {}", to_string(hand)),
+        match (pairs, triples, quads, quints, jokers) {
+            (0, 0, 0, 0, 0) => HandType::HighCard,
+            (0, 0, 0, 0, 1) => HandType::OnePair,
+            (0, 0, 0, 0, 2) => HandType::ThreeOfAKind,
+            (0, 0, 0, 0, 3) => HandType::FourOfAKind,
+            (0, 0, 0, 0, 4) => HandType::FiveOfAKind,
+            (0, 0, 0, 0, 5) => HandType::FiveOfAKind,
+            (1, 0, 0, 0, 0) => HandType::OnePair,
+            (1, 0, 0, 0, 1) => HandType::ThreeOfAKind,
+            (1, 0, 0, 0, 2) => HandType::FourOfAKind,
+            (1, 0, 0, 0, 3) => HandType::FiveOfAKind,
+            (2, 0, 0, 0, 0) => HandType::TwoPair,
+            (2, 0, 0, 0, 1) => HandType::FullHouse,
+            (0, 1, 0, 0, 0) => HandType::ThreeOfAKind,
+            (0, 1, 0, 0, 1) => HandType::FourOfAKind,
+            (0, 1, 0, 0, 2) => HandType::FiveOfAKind,
+            (0, 0, 1, 0, 0) => HandType::FourOfAKind,
+            (0, 0, 1, 0, 1) => HandType::FiveOfAKind,
+            (0, 0, 0, 1, 0) => HandType::FiveOfAKind,
+            (1, 1, 0, 0, 0) => HandType::FullHouse,
+            _ => panic!("Invalid hand: {:?}", hand),
         }
     }
 }
 
 fn cmp_hand_and_bid((h1, b1): &(Hand, usize), (h2, b2): &(Hand, usize)) -> Ordering {
+    // First compare the hands by their type
     let ord = HandType::from_hand(h1).cmp(&HandType::from_hand(h2));
     if ord != Ordering::Equal {
         return ord;
     }
 
+    // If not compare the hands by their values
     let ord = h1.cmp(h2);
     if ord != Ordering::Equal {
         return ord;
     }
 
+    // If all else is identical, compare the bids
     b1.cmp(b2)
-    //
-    //match
-    //    Ordering::Equal => {
-    //        for (card, other_card) in self.0.iter().zip(other.0.iter()) {
-    //            match card.cmp(other_card) {
-    //                Ordering::Equal => continue,
-    //                x => return x,
-    //            }
-    //        }
-    //        Ordering::Equal
-    //    }
-    //    x => x,
-    //}
 }
 
-fn parse_input(lines: impl Iterator<Item = &'static str>) -> Puzzle {
-    lines
+fn parse_input(input: &str) -> Puzzle {
+    input
+        .lines()
         .map(|line| {
             let (hand, bid) = line.split_once(' ').unwrap();
             (to_hand(hand), bid.parse().unwrap())
         })
         .collect()
+}
+
+fn convert_jacks_to_jokers(input: &mut Puzzle) {
+    for (hand, _) in input.iter_mut() {
+        for card in hand.iter_mut() {
+            if *card == 11 {
+                *card = 0;
+            }
+        }
+    }
 }
