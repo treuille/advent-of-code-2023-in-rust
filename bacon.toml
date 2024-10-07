@@ -39,3 +39,9 @@ name = "day_07"
 trigger = { on = "src/bin/day_07.rs" }
 run = "cargo run --bin day_07"
 stdio = "inherit"
+
+[[process]]
+name = "day_08"
+trigger = { on = "src/bin/day_08.rs" }
+run = "cargo run --bin day_08"
+stdio = "inherit"
