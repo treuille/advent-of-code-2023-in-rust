@@ -27,6 +27,7 @@ fn main() {
 }
 
 fn parse_input(mut lines: impl Iterator<Item = &'static str>) -> (Vec<usize>, Vec<Map>) {
+    // Parse the first line which describes the seeds
     let toks = lines.next().unwrap().split_whitespace();
     let seeds: Vec<usize> = toks.skip(1).map(|s| s.parse().unwrap()).collect();
 
