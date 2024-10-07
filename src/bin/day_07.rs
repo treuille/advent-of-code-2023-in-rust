@@ -1,9 +1,21 @@
 use std::cmp::Ordering;
 
-/// A hande is a length-5 array of cards
+/// A `Hand` is a length-5 array of cards
 type Hand = [u8; 5];
 
-/// A Puzzle is a list of hands and their bids
+/// A `HandType` is a rank-ordered enum of poker hands
+#[derive(Eq, Ord, PartialEq, PartialOrd, Debug)]
+enum HandType {
+    HighCard,
+    OnePair,
+    TwoPair,
+    ThreeOfAKind,
+    FullHouse,
+    FourOfAKind,
+    FiveOfAKind,
+}
+
+/// A `Puzzle` is a list of hands and their bids
 type Puzzle = Vec<(Hand, usize)>;
 
 fn main() {
@@ -44,17 +56,6 @@ fn to_hand(s: &str) -> Hand {
         })
         .collect();
     [hand[0], hand[1], hand[2], hand[3], hand[4]]
-}
-
-#[derive(Eq, Ord, PartialEq, PartialOrd, Debug)]
-enum HandType {
-    HighCard,
-    OnePair,
-    TwoPair,
-    ThreeOfAKind,
-    FullHouse,
-    FourOfAKind,
-    FiveOfAKind,
 }
 
 impl HandType {
@@ -105,21 +106,11 @@ impl HandType {
     }
 }
 
-fn cmp_hand_and_bid((h1, b1): &(Hand, usize), (h2, b2): &(Hand, usize)) -> Ordering {
-    // First compare the hands by their type
-    let ord = HandType::from_hand(h1).cmp(&HandType::from_hand(h2));
-    if ord != Ordering::Equal {
-        return ord;
+fn cmp_hand_and_bid((h1, _): &(Hand, usize), (h2, _): &(Hand, usize)) -> Ordering {
+    match HandType::from_hand(h1).cmp(&HandType::from_hand(h2)) {
+        Ordering::Equal => h1.cmp(h2),
+        ord => ord,
     }
-
-    // If not compare the hands by their values
-    let ord = h1.cmp(h2);
-    if ord != Ordering::Equal {
-        return ord;
-    }
-
-    // If all else is identical, compare the bids
-    b1.cmp(b2)
 }
 
 fn parse_input(input: &str) -> Puzzle {
