@@ -1,16 +1,37 @@
+/// A `Map` is a set of `(dest_start, src_start, range_len)` tuples
+type Map = Vec<(usize, usize, usize)>;
+
+/// A `SeedRange` is a `(start, len)` tuples
+type SeedRange = (usize, usize);
+
 fn main() {
     // Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_05.txt");
-    //let input = include_str!("../../puzzle_inputs/day_05_test.txt");
+    let (seeds, maps): (Vec<usize>, Vec<Map>) = parse_input(input.lines());
 
-    // Parse the first line (seeds)
-    let mut lines = input.lines();
-    let seeds = lines.next().unwrap().split_whitespace();
-    let seeds: Vec<usize> = seeds.skip(1).map(|s| s.parse().unwrap()).collect();
-    println!("Seeds: {:?}", seeds);
+    // Solve 5a
+    let sol_5a: usize = solve_5a(&seeds, &maps);
+    let correct_sol_5a: usize = 535088217;
+    println!("* 5a *");
+    println!("My solution: {sol_5a}");
+    println!("Correct solution: {correct_sol_5a}");
+    println!("Equal: {}\n", sol_5a == correct_sol_5a);
+
+    // Solve 5b
+    let sol_5b: usize = solve_5b(&seeds, &maps);
+    let correct_sol_5b: usize = 51399228;
+    println!("* 5b *");
+    println!("My solution: {sol_5b}");
+    println!("Correct solution: {correct_sol_5b}");
+    println!("Equal: {}\n", sol_5b == correct_sol_5b);
+}
+
+fn parse_input(mut lines: impl Iterator<Item = &'static str>) -> (Vec<usize>, Vec<Map>) {
+    let toks = lines.next().unwrap().split_whitespace();
+    let seeds: Vec<usize> = toks.skip(1).map(|s| s.parse().unwrap()).collect();
 
     // Parse the rest of the lines
-    let mut maps: Vec<Vec<(usize, usize, usize)>> = Vec::new();
+    let mut maps: Vec<Map> = Vec::new();
     for line in lines {
         let toks: Vec<&str> = line.split_whitespace().collect();
         match toks.len() {
@@ -28,109 +49,30 @@ fn main() {
         }
     }
 
-    let seed_ranges: Vec<(usize, usize)> =
-        seeds.chunks(2).map(|chunk| (chunk[0], chunk[1])).collect();
-
-    //// Convert to length-1 seed ranges
-    //let seed_ranges: Vec<(usize, usize)> = seeds.iter().map(|&seed| (seed, 1)).collect();
-
-    //// Solve 5a
-    //let sol_5a: usize = solve_5a(&seeds, &maps);
-    //let correct_sol_5a: usize = 535088217;
-    //println!("* 5a *");
-    //println!("My solution: {sol_5a}");
-    //println!("Correct solution: {correct_sol_5a}");
-    //println!("Equal: {}\n", sol_5a == correct_sol_5a);
-
-    // Solve 5b
-    let sol_5b: usize = solve_5b(&seed_ranges, &maps);
-    let correct_sol_5b: usize = 79;
-    println!("* 5b *");
-    println!("My solution: {sol_5b}");
-    println!("Correct solution: {correct_sol_5b}");
-    println!("Equal: {}\n", sol_5b == correct_sol_5b);
+    (seeds, maps)
 }
 
-#[allow(dead_code)]
-fn solve_5a(seeds: &[usize], maps: &[Vec<(usize, usize, usize)>]) -> usize {
-    // Find the locations of the seeds in part a
-    seeds
-        .iter()
-        .map(|seed| {
-            let mut index = *seed;
-            for map in maps.iter() {
-                for &(dest_start, src_start, range_len) in map {
-                    if index >= src_start && index < src_start + range_len {
-                        index = dest_start + (index - src_start);
-                        break;
-                    }
-                }
-            }
-            index
-        })
-        .min()
-        .unwrap()
+/// Solve 5a by interpreting each seed as a length-1 SeedRange
+fn solve_5a(seeds: &[usize], maps: &[Map]) -> usize {
+    let seed_ranges: Vec<SeedRange> = seeds.iter().map(|&seed| (seed, 1)).collect();
+    solve(&seed_ranges, maps)
+}
+
+fn solve_5b(seeds: &[usize], maps: &[Map]) -> usize {
+    let seed_ranges: Vec<SeedRange> = seeds.chunks(2).map(|chunk| (chunk[0], chunk[1])).collect();
+    solve(&seed_ranges, maps)
 }
 
 #[allow(dead_code, unused_variables, unused_mut)]
-fn solve_5b(seed_ranges: &[(usize, usize)], maps: &[Vec<(usize, usize, usize)>]) -> usize {
-    fn are_disjoint(ranges: &[(usize, usize)]) -> bool {
-        ranges
-            .iter()
-            .zip(ranges.iter().skip(1))
-            .all(|(&(start1, len1), &(start2, _))| start1 + len1 <= start2)
-    }
-
-    fn count_seeds(ranges: &[(usize, usize)]) -> usize {
-        ranges.iter().map(|(_, len)| len).sum()
-    }
-
-    fn print_seed_counts(
-        src_ranges: &[(usize, usize)],
-        dest_ranges: &[(usize, usize)],
-        num_seeds: usize,
-    ) {
-        // Now print the seed counts
-        let num_src_seeds: usize = count_seeds(src_ranges);
-        let num_dest_seeds: usize = count_seeds(dest_ranges);
-        let total_seeds: usize = num_src_seeds + num_dest_seeds;
-        println!(
-            "Source seeds: {num_src_seeds} Dest seeds: {num_dest_seeds} Total seeds: {total_seeds}",
-        );
-
-        // Print the actual ranges
-        println!("( Source Ranges: {:?} )", src_ranges);
-        println!("( Dest Ranges: {:?} )", dest_ranges);
-
-        // Make sure the total number of seeds is the same
-        assert_eq!(total_seeds, num_seeds);
-
-        //// Make sure the ranges are disjoint
-        //assert!(are_disjoint(src_ranges));
-        //assert!(are_disjoint(dest_ranges));
-    }
-
-    // Count the seeds in the initial ranges
-    let num_seeds: usize = count_seeds(seed_ranges);
-    //assert!(are_disjoint(seed_ranges));
-
-    // Count the seeds in the initial ranges
-    let num_seeds: usize = count_seeds(seed_ranges);
-
+fn solve(seed_ranges: &[SeedRange], maps: &[Map]) -> usize {
     // These are the ranges that we're mapping across
     let mut ranges = seed_ranges.to_vec();
 
     for (iter, map) in maps.iter().enumerate() {
         // These are the ranges that we're mappying to
-        let mut dest_ranges: Vec<(usize, usize)> = Vec::new();
-
-        // debug - begin
-        println!("\n*** Before iteration {iter} ***");
-        print_seed_counts(&ranges, &dest_ranges, num_seeds);
-        // debug - end
+        let mut dest_ranges: Vec<SeedRange> = Vec::new();
 
         for &(dest_start, src_start, map_len) in map.iter() {
-            //assert!(range_len != 13202543);
             let src_end = src_start + map_len;
 
             // "Consume" the ranges into an iter, run then through the map filling (ranges, dest_ranges)
@@ -160,33 +102,15 @@ fn solve_5b(seed_ranges: &[(usize, usize)], maps: &[Vec<(usize, usize, usize)>])
                         if segment_start >= src_start && segment_end <= src_end {
                             // This segment is contained in the map range
                             let dest_segment_start = dest_start + (segment_start - src_start);
-
-                            // debug - begin
-                            assert!(dest_segment_start >= dest_start);
-                            assert!(segment_len <= range_len);
-                            println!("# iter {iter} : mapping ({segment_start}, {segment_len}) from ({range_start}, {range_len}) -> ({dest_segment_start}, {segment_len}) via map ({dest_start}, {src_start}, {map_len})");
-                            // debug - end
-
                             dest_ranges.push((dest_segment_start, segment_len));
                         } else {
                             // This segment is not contained in the map range
                             ranges.push((segment_start, segment_len));
-                            println!("# iter {iter} : mapping ({segment_start}, {segment_len}) from ({range_start}, {range_len}) -> itself via map ({dest_start}, {src_start}, {range_len})");
                         }
                     }
                 }
             }
-
-            // debug - begin
-            println!("*** After map ({dest_start}, {src_start}, {map_len}) ***");
-            print_seed_counts(&ranges, &dest_ranges, num_seeds);
-            // debug - end
         }
-        // debug - begin
-        println!("\n*** After iteration {iter} ***");
-        print_seed_counts(&ranges, &dest_ranges, num_seeds);
-        // debug - end
-
         // Any final ranges left over use the identity map
         dest_ranges.extend(ranges.iter().cloned());
 
@@ -194,12 +118,6 @@ fn solve_5b(seed_ranges: &[(usize, usize)], maps: &[Vec<(usize, usize, usize)>])
         ranges = dest_ranges;
     }
 
-    println!("\n*** Final ***");
-    print_seed_counts(&ranges, &[], num_seeds);
-
     // Find the minimum index in the ranges
-    let min_index = ranges.iter().map(|(start, _)| start).min().unwrap();
-    println!("Min index: {}", min_index);
-
-    unimplemented!("solve_5b not implemented");
+    *ranges.iter().map(|(start, _)| start).min().unwrap()
 }
