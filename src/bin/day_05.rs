@@ -82,7 +82,6 @@ fn solve(seed_ranges: &[SeedRange], maps: &[Map]) -> usize {
             ranges = Vec::new();
 
             for (range_start, range_len) in ranges_iter {
-                assert!(range_len > 0);
                 let range_end = range_start + range_len;
 
                 // Divide the range tino three segments from
