@@ -28,11 +28,11 @@ fn main() {
         }
     }
 
-    //let seed_ranges: Vec<(usize, usize)> =
-    //    seeds.chunks(2).map(|chunk| (chunk[0], chunk[1])).collect();
+    let seed_ranges: Vec<(usize, usize)> =
+        seeds.chunks(2).map(|chunk| (chunk[0], chunk[1])).collect();
 
-    // Convert to length-1 seed ranges
-    let seed_ranges: Vec<(usize, usize)> = seeds.iter().map(|&seed| (seed, 1)).collect();
+    //// Convert to length-1 seed ranges
+    //let seed_ranges: Vec<(usize, usize)> = seeds.iter().map(|&seed| (seed, 1)).collect();
 
     //// Solve 5a
     //let sol_5a: usize = solve_5a(&seeds, &maps);
@@ -129,9 +129,9 @@ fn solve_5b(seed_ranges: &[(usize, usize)], maps: &[Vec<(usize, usize, usize)>])
         print_seed_counts(&ranges, &dest_ranges, num_seeds);
         // debug - end
 
-        for &(dest_start, src_start, range_len) in map.iter() {
-            //assert!(dest_start > 0);
-            let src_end = src_start + range_len;
+        for &(dest_start, src_start, map_len) in map.iter() {
+            //assert!(range_len != 13202543);
+            let src_end = src_start + map_len;
 
             // "Consume" the ranges into an iter, run then through the map filling (ranges, dest_ranges)
             let ranges_iter = ranges.into_iter();
@@ -157,23 +157,28 @@ fn solve_5b(seed_ranges: &[(usize, usize)], maps: &[Vec<(usize, usize, usize)>])
 
                     if segment_start >= range_start && segment_end <= range_end {
                         // This segment is in the range (start, end), so keep it
-                        if segment_start >= src_start && range_end <= src_end {
+                        if segment_start >= src_start && segment_end <= src_end {
                             // This segment is contained in the map range
                             let dest_segment_start = dest_start + (segment_start - src_start);
-                            //assert!(dest_segment_start >= dest_start);
-                            //assert!(segment_len <= range_len);
-                            //assert!(dest_segment_start > 0);
+
+                            // debug - begin
+                            assert!(dest_segment_start >= dest_start);
+                            assert!(segment_len <= range_len);
+                            println!("# iter {iter} : mapping ({segment_start}, {segment_len}) from ({range_start}, {range_len}) -> ({dest_segment_start}, {segment_len}) via map ({dest_start}, {src_start}, {map_len})");
+                            // debug - end
+
                             dest_ranges.push((dest_segment_start, segment_len));
                         } else {
                             // This segment is not contained in the map range
                             ranges.push((segment_start, segment_len));
+                            println!("# iter {iter} : mapping ({segment_start}, {segment_len}) from ({range_start}, {range_len}) -> itself via map ({dest_start}, {src_start}, {range_len})");
                         }
                     }
                 }
             }
 
             // debug - begin
-            println!("*** After map ({dest_start}, {src_start}, {range_len}) ***");
+            println!("*** After map ({dest_start}, {src_start}, {map_len}) ***");
             print_seed_counts(&ranges, &dest_ranges, num_seeds);
             // debug - end
         }
