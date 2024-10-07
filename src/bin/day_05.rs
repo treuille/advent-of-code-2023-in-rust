@@ -59,17 +59,18 @@ fn solve_5a(seeds: &[usize], maps: &[Map]) -> usize {
     solve(&seed_ranges, maps)
 }
 
+/// Solve 5a by interpreting each pair of seed as a SeedRange
 fn solve_5b(seeds: &[usize], maps: &[Map]) -> usize {
     let seed_ranges: Vec<SeedRange> = seeds.chunks(2).map(|chunk| (chunk[0], chunk[1])).collect();
     solve(&seed_ranges, maps)
 }
 
-#[allow(dead_code, unused_variables, unused_mut)]
+/// Puzzles 5a and 5b are the same, except for the interpretation of the seeds
 fn solve(seed_ranges: &[SeedRange], maps: &[Map]) -> usize {
     // These are the ranges that we're mapping across
     let mut ranges = seed_ranges.to_vec();
 
-    for (iter, map) in maps.iter().enumerate() {
+    for map in maps.iter() {
         // These are the ranges that we're mappying to
         let mut dest_ranges: Vec<SeedRange> = Vec::new();
 
