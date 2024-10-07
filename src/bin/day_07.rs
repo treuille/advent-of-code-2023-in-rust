@@ -28,12 +28,7 @@ fn main() {
 
 fn solve(input: &mut Puzzle) -> usize {
     input.sort_unstable_by(cmp_hand_and_bid);
-
-    input
-        .iter()
-        .zip(1..)
-        .map(|((_hand, bid), order)| bid * order)
-        .sum()
+    input.iter().zip(1..).map(|((_, bid), i)| bid * i).sum()
 }
 
 fn to_hand(s: &str) -> Hand {
@@ -53,28 +48,12 @@ fn to_hand(s: &str) -> Hand {
 
 #[derive(Eq, Ord, PartialEq, PartialOrd, Debug)]
 enum HandType {
-    // all cards' labels are distinct: 23456
     HighCard,
-
-    // two cards share one label, and the other three cards have a different label from the pair
-    // and each other: A23A4
     OnePair,
-
-    // two cards share one label, two other cards share a second label, and the remaining card has
-    // a third label: 23432
     TwoPair,
-
-    // three cards have the same label, and the remaining two cards are each different from any
-    // other card in the hand: TTT98
     ThreeOfAKind,
-
-    // three cards have the same label, and the remaining two cards share a different label: 23332
     FullHouse,
-    // Four of a kind, where four cards have the same label and one card has a different label:
-    // AA8AA
     FourOfAKind,
-
-    // all five cards have the same label: AAAAA
     FiveOfAKind,
 }
 
