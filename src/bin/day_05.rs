@@ -84,7 +84,7 @@ fn solve(seed_ranges: &[SeedRange], maps: &[Map]) -> usize {
             for (range_start, range_len) in ranges_iter {
                 let range_end = range_start + range_len;
 
-                // Split `(range_start, range_end) union (src_start, src_end)` into 3 segments
+                // Split `range_start->range_end union src_start->src_end` into 3 segments
                 let mut idx = [range_start, range_end, src_start, src_end];
                 idx.sort();
                 let segments = idx.iter().zip(idx.iter().skip(1));
@@ -98,7 +98,7 @@ fn solve(seed_ranges: &[SeedRange], maps: &[Map]) -> usize {
                     }
 
                     if segment_start >= range_start && segment_end <= range_end {
-                        // This segment is in the range (start, end), so keep it
+                        // This segment is in the range range_start->range_end, so keep it
                         if segment_start >= src_start && segment_end <= src_end {
                             // This segment is contained in the map range
                             let dest_segment_start = dest_start + (segment_start - src_start);
