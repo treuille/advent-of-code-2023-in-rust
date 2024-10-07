@@ -1,19 +1,19 @@
 fn main() {
-    // Solve 5a
-    let sol_5a: usize = solve(&[40, 82, 84, 92], &[233, 1011, 1110, 1487]);
-    let correct_sol_5a: usize = 3316275;
-    println!("* 5a *");
-    println!("My solution: {sol_5a}");
-    println!("Correct solution: {correct_sol_5a}");
-    println!("Equal: {}\n", sol_5a == correct_sol_5a);
+    // Solve 6a
+    let sol_6a: usize = solve(&[40, 82, 84, 92], &[233, 1011, 1110, 1487]);
+    let correct_sol_6a: usize = 3316275;
+    println!("* 6a *");
+    println!("My solution: {sol_6a}");
+    println!("Correct solution: {correct_sol_6a}");
+    println!("Equal: {}\n", sol_6a == correct_sol_6a);
 
-    // Solve 5b
-    let sol_5b: usize = solve(&[40828492], &[233101111101487]);
-    let correct_sol_5b: usize = 27102791;
-    println!("* 5b *");
-    println!("My solution: {sol_5b}");
-    println!("Correct solution: {correct_sol_5b}");
-    println!("Equal: {}\n", sol_5b == correct_sol_5b);
+    // Solve 6b
+    let sol_6b: usize = solve(&[40828492], &[233101111101487]);
+    let correct_sol_6b: usize = 27102791;
+    println!("* 6b *");
+    println!("My solution: {sol_6b}");
+    println!("Correct solution: {correct_sol_6b}");
+    println!("Equal: {}\n", sol_6b == correct_sol_6b);
 }
 
 fn solve(times: &[usize], dists: &[usize]) -> usize {
