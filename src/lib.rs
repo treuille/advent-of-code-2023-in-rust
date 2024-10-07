@@ -316,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_grid_parsing() {
-        let to_u32 = |c: char| c.to_digit(10).unwrap() as u32;
+        let to_u32 = |c: char| c.to_digit(10).unwrap();
         let input = "\n123\n 456\n";
         let array = parse_char_grid(input, to_u32);
         let expected = arr2(&[[1, 2, 3], [4, 5, 6]]);
