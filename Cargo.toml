@@ -8,4 +8,5 @@ default-run = "day_08"
 
 [dependencies]
 ndarray = "0.16.1"
+num = "0.4.3"
 regex = "1.11.0"
