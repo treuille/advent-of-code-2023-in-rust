@@ -1,8 +1,10 @@
 use advent_of_code_2023_in_rust::parse_regex;
+use num::integer::gcd;
 use regex::Regex;
 
 #[allow(unused_imports)]
 use std::collections::{HashMap, HashSet};
+use std::iter::Cycle;
 
 #[allow(unreachable_code, unused_variables, dead_code)]
 fn main() {
@@ -15,6 +17,7 @@ fn main() {
     //println!("input:\n{}", input);
 
     let (instructions, network) = input.split_once("\n\n").unwrap();
+    let instructions: Vec<Instruction> = instructions.chars().collect();
 
     //dbg!(instructions);
 
@@ -24,24 +27,24 @@ fn main() {
         .map(|(a, b, c)| (a, (b, c)))
         .collect();
 
-    //let soln_8a = solve_8a(instructions, &map);
-    //let correct_soln_8a: usize = 15989;
-    //println!("soln_8a: {}", soln_8a);
-    //println!("correct solution: {}", correct_soln_8a);
+    let soln_8a = solve_8a(&instructions, &map);
+    let correct_soln_8a: usize = 15989;
+    println!("soln_8a: {}", soln_8a);
+    println!("correct solution: {}", correct_soln_8a);
 
     //unimplemented!("TODO: Implement parsing of instructions");
     //
 
-    solve_8b(instructions, &map);
+    solve_8b(&instructions, &map);
 
     println!("Solved 8b");
 }
 
 #[allow(unused_variables, unreachable_code, dead_code)]
-fn solve_8a(instructions: Instructions, map: &Map) -> usize {
+fn solve_8a(instructions: &[Instruction], map: &Map) -> usize {
     let initial_state = "AAA";
     instructions
-        .chars()
+        .iter()
         .cycle()
         .scan(initial_state, |node, instruction| {
             if *node == "ZZZ" {
@@ -59,7 +62,7 @@ fn solve_8a(instructions: Instructions, map: &Map) -> usize {
 }
 
 #[allow(unused_variables, unreachable_code, dead_code)]
-fn solve_8b(instructions: Instructions, map: &Map) {
+fn solve_8b(instructions: &[Instruction], map: &Map) {
     //dbg!(instructions);
     //dbg!(map);
 
@@ -71,12 +74,57 @@ fn solve_8b(instructions: Instructions, map: &Map) {
 
     dbg!(&initial_nodes);
 
-    // pick one for now
-    let initial_node = initial_nodes.iter().next().unwrap();
+    //// pick one for now
+    //let initial_node = initial_nodes.iter().next().unwrap();
+    //
+    //let initial_node = "AAA";
+    //let s = Sequence::new(initial_node, instructions, map);
+    //
+    //println!("** s **");
+    //println!("cycle_start: {}", s.cycle_start);
+    //println!("num states: {}", s.states.len());
+    //println!("first state: {:?}", s.states.first().unwrap());
+    //println!("cycle start state: {:?}", s.states[s.cycle_start]);
+    //println!("last state: {:?}", s.states.last().unwrap());
+    //println!();
+    //
+    //let state_at = |index: usize| -> State {
+    //    state_iter(initial_node, instructions, map)
+    //        .nth(index)
+    //        .unwrap()
+    //};
+    //
+    //println!("iter first state: {:?}", state_at(0));
+    //println!("iter cycle_start state: {:?}", state_at(s.cycle_start));
+    //println!("iter last state: {:?}", state_at(s.states.len() - 1));
+    //println!("iter subsequent state: {:?}", state_at(s.states.len()));
+    //println!("iter 1000000 state: {:?}", state_at(1000000));
+    //println!("iter 2000000 state: {:?}", state_at(2000000));
+    //println!();
+    //
+    //println!("get first state: {:?}", s.get(0));
+    //println!("get cycle_start state: {:?}", s.get(s.cycle_start));
+    //println!("get last state: {:?}", s.get(s.states.len() - 1));
+    //println!("get subsequent state: {:?}", s.get(s.states.len()));
+    //println!("get 1000000 state: {:?}", s.get(1000000));
+    //println!("get 2000000 state: {:?}", s.get(2000000));
 
-    let s = Sequence::new("AAA", instructions, map);
+    /// Least common multiple of two numbers
+    fn lcm(a: usize, b: usize) -> usize {
+        (a * b) / gcd(a, b)
+    }
 
-    println!("s: {:?}", s);
+    let mut step = 0;
+    let mut step_len = 1;
+    for &node in initial_nodes.iter() {
+        println!("probing node: {}", node);
+        let s = Sequence::new(node, instructions, map);
+        while !s.get(step).0.ends_with("Z") {
+            step += step_len;
+        }
+        println!("found {} at step {}", s.get(step).0, step);
+        step_len = lcm(step_len, s.cycle_len());
+    }
     //dbg!(s);
 
     //impl Sequence {
@@ -103,7 +151,7 @@ fn solve_8b(instructions: Instructions, map: &Map) {
 }
 
 /// Instrucitons is a sequence of characters that can be either 'L' or 'R'
-type Instructions = &'static str;
+type Instruction = char;
 
 /// A `Map` is a graph of nodes with two children, labeled 'L' or 'R'
 type Map = HashMap<&'static str, (&'static str, &'static str)>;
@@ -114,64 +162,72 @@ type Node = &'static str;
 #[allow(dead_code)]
 type State = (Node, usize);
 
+/// Turns `intial_node` into an sequence of states, cyclically
+/// following the `instructions` through the `map`
+fn state_iter<'a>(
+    initial_node: Node,
+    instructions: &'a [Instruction],
+    map: &'a Map,
+) -> impl Iterator<Item = State> + 'a {
+    let initial_state: State = (initial_node, 0);
+    std::iter::successors(Some(initial_state), |(node, instr_ptr)| {
+        let instruction = instructions.get(*instr_ptr).unwrap();
+        let instr_ptr = (instr_ptr + 1) % instructions.len();
+        match instruction {
+            'L' => Some((map[node].0, instr_ptr)),
+            'R' => Some((map[node].1, instr_ptr)),
+            _ => panic!("Invalid instruction: {}", instruction),
+        }
+    })
+}
+
 /// `Sequence` is a widget that can take any usize and compute the
-/// correspoinding state or any index 0..
+/// correspoinding state or any index 00..
 #[allow(dead_code)]
 #[derive(Debug)]
-struct Sequence {}
+struct Sequence {
+    cycle_start: usize,
+    states: Vec<State>,
+}
 
 #[allow(dead_code, unused_variables, unreachable_code)]
 impl Sequence {
-    fn new(initial_node: Node, instructions: Instructions, map: &Map) -> Self {
+    #[allow(unused_mut)]
+    fn new(initial_node: Node, instructions: &[Instruction], map: &Map) -> Self {
         // Our first state starts at the first instruction
-        let initial_state: State = (*node, 0);
+        let initial_state: State = (initial_node, 00);
         dbg!(initial_state);
 
         // Create an endless iterator of states
-        let mut state_iter = std::iter::successors(Some(initial_state), |(node, instr_ptr)| {
-            let instruction = instructions.get(*instr_ptr).unwrap();
-            let instr_ptr = (instr_ptr + 1) % instructions.len();
-            match instruction {
-                'L' => Some((network[node].0, instr_ptr)),
-                'R' => Some((network[node].1, instr_ptr)),
-                _ => panic!("Invalid instruction: {}", instruction),
-            }
-        });
+        let mut state_iter = state_iter(initial_node, instructions, map);
 
         // Traverse this iterator until a cycle is found
+        let mut states: Vec<State> = Vec::new();
         let mut visited_nodes: HashMap<State, usize> = HashMap::new();
-        println!("state: {:?}", state);
-        panic!("Stop here");
         loop {
             let state = state_iter.next().unwrap();
-            let maybe_path_len = visited_nodes.get(&state);
-            if let Some(path_len) = maybe_path_len {
-                println!(
-                    "cycle length: {} after steps {}",
-                    visited_nodes.len() - path_len,
-                    path_len
-                );
-                println!(
-                    "nodes ending in Z: {:?}",
-                    visited_nodes
-                        .iter()
-                        .filter(|((node, _), _)| node.ends_with("Z"))
-                        .collect::<Vec<_>>()
-                );
-                println!(
-                    "min value: {} and max value: {}",
-                    visited_nodes.values().min().unwrap(),
-                    visited_nodes.values().max().unwrap(),
-                );
-                break;
+            if let Some(&cycle_start) = visited_nodes.get(&state) {
+                return Sequence {
+                    cycle_start,
+                    states,
+                };
             } else {
+                states.push(state);
                 visited_nodes.insert(state, visited_nodes.len());
             }
         }
-        unimplemented!("TODO: Implement Sequence::new()")
     }
 
     fn get(&self, index: usize) -> State {
-        unimplemented!("TODO: Implement Sequence::get()")
+        let index = index
+            .checked_sub(self.cycle_start)
+            .map_or(index, |rel_index| {
+                self.cycle_start + rel_index % self.cycle_len()
+            });
+        self.states[index]
+    }
+
+    fn cycle_len(&self) -> usize {
+        self.states.len() - self.cycle_start
     }
 }
