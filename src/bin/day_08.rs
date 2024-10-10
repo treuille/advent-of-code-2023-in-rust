@@ -72,44 +72,7 @@ fn solve_8b(instructions: &[Instruction], map: &Map) {
         .map(|&node| node)
         .collect();
 
-    dbg!(&initial_nodes);
-
-    //// pick one for now
-    //let initial_node = initial_nodes.iter().next().unwrap();
-    //
-    //let initial_node = "AAA";
-    //let s = Sequence::new(initial_node, instructions, map);
-    //
-    //println!("** s **");
-    //println!("cycle_start: {}", s.cycle_start);
-    //println!("num states: {}", s.states.len());
-    //println!("first state: {:?}", s.states.first().unwrap());
-    //println!("cycle start state: {:?}", s.states[s.cycle_start]);
-    //println!("last state: {:?}", s.states.last().unwrap());
-    //println!();
-    //
-    //let state_at = |index: usize| -> State {
-    //    state_iter(initial_node, instructions, map)
-    //        .nth(index)
-    //        .unwrap()
-    //};
-    //
-    //println!("iter first state: {:?}", state_at(0));
-    //println!("iter cycle_start state: {:?}", state_at(s.cycle_start));
-    //println!("iter last state: {:?}", state_at(s.states.len() - 1));
-    //println!("iter subsequent state: {:?}", state_at(s.states.len()));
-    //println!("iter 1000000 state: {:?}", state_at(1000000));
-    //println!("iter 2000000 state: {:?}", state_at(2000000));
-    //println!();
-    //
-    //println!("get first state: {:?}", s.get(0));
-    //println!("get cycle_start state: {:?}", s.get(s.cycle_start));
-    //println!("get last state: {:?}", s.get(s.states.len() - 1));
-    //println!("get subsequent state: {:?}", s.get(s.states.len()));
-    //println!("get 1000000 state: {:?}", s.get(1000000));
-    //println!("get 2000000 state: {:?}", s.get(2000000));
-
-    /// Least common multiple of two numbers
+    // Least common multiple of two numbers
     fn lcm(a: usize, b: usize) -> usize {
         (a * b) / gcd(a, b)
     }
@@ -117,7 +80,7 @@ fn solve_8b(instructions: &[Instruction], map: &Map) {
     let mut step = 0;
     let mut step_len = 1;
     for &node in initial_nodes.iter() {
-        println!("probing node: {}", node);
+        //println!("probing node: {}", node);
         let s = Sequence::new(node, instructions, map);
         while !s.get(step).0.ends_with("Z") {
             step += step_len;
@@ -196,7 +159,6 @@ impl Sequence {
     fn new(initial_node: Node, instructions: &[Instruction], map: &Map) -> Self {
         // Our first state starts at the first instruction
         let initial_state: State = (initial_node, 00);
-        dbg!(initial_state);
 
         // Create an endless iterator of states
         let mut state_iter = state_iter(initial_node, instructions, map);
