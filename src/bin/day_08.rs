@@ -1,46 +1,31 @@
 use advent_of_code_2023_in_rust::parse_regex;
 use num::integer::gcd;
 use regex::Regex;
-
-#[allow(unused_imports)]
 use std::collections::{HashMap, HashSet};
-use std::iter::Cycle;
 
-#[allow(unreachable_code, unused_variables, dead_code)]
 fn main() {
     // Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_08.txt");
-    //let input = include_str!("../../puzzle_inputs/day_08_test.txt");
-    //let input = include_str!("../../puzzle_inputs/day_08_test_2.txt");
-    //let input = include_str!("../../puzzle_inputs/day_08_test_3.txt");
-    //println!("input len: {}", input.len());
-    //println!("input:\n{}", input);
+    let (instructions, map) = parse_input(input);
 
-    let (instructions, network) = input.split_once("\n\n").unwrap();
-    let instructions: Vec<Instruction> = instructions.chars().collect();
+    // Solve 8a
+    let sol_8a = solve_8a(&instructions, &map);
+    let correct_sol_8a: usize = 15989;
+    println!("* 8a *");
+    println!("My solution: {sol_8a}");
+    println!("Correct solution: {correct_sol_8a}");
+    println!("Equal: {}\n", sol_8a == correct_sol_8a);
 
-    //dbg!(instructions);
-
-    let pattern = r"(\w{3}) \= \((\w{3})\, (\w{3})\)";
-    let re = Regex::new(pattern).unwrap();
-    let map: Map = parse_regex::parse_lines(re, network.trim())
-        .map(|(a, b, c)| (a, (b, c)))
-        .collect();
-
-    let soln_8a = solve_8a(&instructions, &map);
-    let correct_soln_8a: usize = 15989;
-    println!("soln_8a: {}", soln_8a);
-    println!("correct solution: {}", correct_soln_8a);
-
-    //unimplemented!("TODO: Implement parsing of instructions");
-    //
-
-    solve_8b(&instructions, &map);
-
+    // Solve 8b
+    let sol_8b: usize = solve_8b(&instructions, &map);
+    let correct_sol_8b: usize = 13830919117339;
+    println!("* 8b *");
+    println!("My solution: {sol_8b}");
+    println!("Correct solution: {correct_sol_8b}");
+    println!("Equal: {}\n", sol_8b == correct_sol_8b);
     println!("Solved 8b");
 }
 
-#[allow(unused_variables, unreachable_code, dead_code)]
 fn solve_8a(instructions: &[Instruction], map: &Map) -> usize {
     let initial_state = "AAA";
     instructions
@@ -61,15 +46,11 @@ fn solve_8a(instructions: &[Instruction], map: &Map) -> usize {
         .count()
 }
 
-#[allow(unused_variables, unreachable_code, dead_code)]
-fn solve_8b(instructions: &[Instruction], map: &Map) {
-    //dbg!(instructions);
-    //dbg!(map);
-
+fn solve_8b(instructions: &[Instruction], map: &Map) -> usize {
     let initial_nodes: HashSet<Node> = map
         .keys()
         .filter(|node| node.ends_with("A"))
-        .map(|&node| node)
+        .copied()
         .collect();
 
     // Least common multiple of two numbers
@@ -80,37 +61,13 @@ fn solve_8b(instructions: &[Instruction], map: &Map) {
     let mut step = 0;
     let mut step_len = 1;
     for &node in initial_nodes.iter() {
-        //println!("probing node: {}", node);
         let s = Sequence::new(node, instructions, map);
         while !s.get(step).0.ends_with("Z") {
             step += step_len;
         }
-        println!("found {} at step {}", s.get(step).0, step);
         step_len = lcm(step_len, s.cycle_len());
     }
-    //dbg!(s);
-
-    //impl Sequence {
-    //    fn new(starting_node: Node, instructions: Instructions, map: &Map) -> Self {
-
-    unimplemented!("TODO: Implement solve_8b(..)")
-
-    //let is_prime = assert!(
-    //    (2..instructions.len()).all(|i| instructions.len() % i != 0),
-    //    "instructions.len() is not prime"
-    //);
-    //
-    //// Solve b - correct answer: ???
-    //println!("About to solve the second part of the puzzle");
-    //println!("initial_state: {:?}", initial_state);
-    //
-    //// Find the cycle length for each node
-    //#[allow(clippy::never_loop)]
-    //for node in initial_state.iter() {
-    //    println!("node: {}", node);
-    //
-    //    }
-    //}
+    step
 }
 
 /// Instrucitons is a sequence of characters that can be either 'L' or 'R'
@@ -122,7 +79,6 @@ type Map = HashMap<&'static str, (&'static str, &'static str)>;
 type Node = &'static str;
 
 /// A `State` is both a node on the graph as well as an instruction pointer
-#[allow(dead_code)]
 type State = (Node, usize);
 
 /// Turns `intial_node` into an sequence of states, cyclically
@@ -192,4 +148,17 @@ impl Sequence {
     fn cycle_len(&self) -> usize {
         self.states.len() - self.cycle_start
     }
+}
+
+fn parse_input(input: &'static str) -> (Vec<Instruction>, Map) {
+    let (instructions, map) = input.split_once("\n\n").unwrap();
+    let instructions: Vec<Instruction> = instructions.chars().collect();
+
+    let pattern = r"(\w{3}) \= \((\w{3})\, (\w{3})\)";
+    let re = Regex::new(pattern).unwrap();
+    let map: Map = parse_regex::parse_lines(re, map.trim())
+        .map(|(a, b, c)| (a, (b, c)))
+        .collect();
+
+    (instructions, map)
 }
