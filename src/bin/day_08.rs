@@ -4,7 +4,7 @@ use regex::Regex;
 use std::collections::{HashMap, HashSet};
 
 fn main() {
-    // Parse the input, counting the number of matches per card
+    // Parse the input into a set of `instructions` and a `map` of nodes
     let input = include_str!("../../puzzle_inputs/day_08.txt");
     let puzzle = Puzzle::new(input);
 
@@ -89,10 +89,13 @@ impl Puzzle {
 }
 
 /// A `Path` is a sequence of nodes each of which can be computed by index in costant time
-/// using Path::at_step(index).
+/// using path.at_step(index).
 struct Path {
-    cycle_start: usize,
+    /// A path is a sequence of nodes, which cycle after `cycle_start` steps.
     nodes: Vec<&'static str>,
+
+    /// Index of the first node in the cycle
+    cycle_start: usize,
 }
 
 impl Path {
