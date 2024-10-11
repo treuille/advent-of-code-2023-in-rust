@@ -8,7 +8,7 @@ fn main() {
         .map(|line| {
             let line: Vec<i32> = line
                 .split_whitespace()
-                .map(|line| line.parse().unwrap())
+                .map(|x| x.parse().unwrap())
                 .collect();
             solve(&line)
         })
