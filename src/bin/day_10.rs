@@ -1,16 +1,52 @@
-use advent_of_code_2023_in_rust::grid::parse_char_grid;
+use advent_of_code_2023_in_rust::grid::{neighbors, parse_char_grid};
 use ndarray::Array2;
+use std::fmt::Display;
 
+#[allow(unused_must_use)]
 fn main() {
     // Parse the input, counting the number of matches per card
-    let input = include_str!("../../puzzle_inputs/day_10_test.txt");
-    println!("input len: {}", input.len());
-    println!("input:\n{}", input);
+    //let input = include_str!("../../puzzle_inputs/day_10.txt");
+    //let input = include_str!("../../puzzle_inputs/day_10_test.txt");
+    let input = include_str!("../../puzzle_inputs/day_10_test_2.txt");
+
+    //println!("input len: {}", input.len());
+    //println!("input:\n{}", input);
 
     let ident = |c: char| c;
-    let puzzle = parse_char_grid(&input, ident); // Solve 10a
-    println!("puzzle input:\n{:?}", puzzle);
-    print_grid(&puzzle);
+    let grid = parse_char_grid(input, ident); // Solve 10a
+
+    println!("puzzle input:");
+    print_grid(&grid);
+    println!();
+
+    // Solve the puzzle with a breadth-first search
+    let mut dists = Array2::from_elem(grid.dim(), None);
+    let mut to_process: Vec<(usize, usize)> = grid
+        .indexed_iter()
+        .filter(|&(_, &pipe)| pipe == 'S')
+        .map(|(pos, _)| pos)
+        .collect();
+    for dist in 0.. {
+        //println!("dist: {} processing: {:?}", dist, to_process);
+        if to_process.is_empty() {
+            break;
+        }
+        let pos_iter = to_process.into_iter();
+        to_process = Vec::new();
+        for pos in pos_iter {
+            if dists[pos].is_none() {
+                dists[pos] = Some(dist);
+                to_process.extend(pipe_neighbors(pos, &grid));
+            }
+        }
+    }
+
+    println!("Answer: {}", dists.iter().filter_map(|&d| d).max().unwrap());
+
+    println!("dists:");
+    let dist_char: Array2<char> =
+        dists.map(|&d| d.map(|d| (d as u8 + b'0') as char).unwrap_or('.'));
+    print_grid(&dist_char);
 
     //let sol_10a: usize = 12;
     //let correct_sol_10a: usize = 32;
@@ -28,9 +64,33 @@ fn main() {
     //println!("Equal: {}\n", sol_10b == correct_sol_10b);
 }
 
-fn print_grid(grid: &Array2<char>) {
+fn print_grid<T: Display>(grid: &Array2<T>) {
     grid.rows().into_iter().for_each(|row| {
         row.iter().for_each(|cell| print!("{}", cell));
         println!();
     });
+}
+
+/// Find the neighbors of a at a point, givend the pipe structure of the grid
+fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize)> {
+    let pipe = grid[pos];
+    match pipe {
+        '.' => Vec::new(),
+        'S' => neighbors(pos, grid.dim())
+            .filter(|&neightbor| pipe_neighbors(neightbor, grid).contains(&pos))
+            .collect(),
+        _ => {
+            let (y, x) = pos;
+            let (h, w) = grid.dim();
+            [
+                (['-', 'J', '7'].contains(&pipe) && x > 0).then(|| (y, x - 1)), // West
+                (['-', 'L', 'F'].contains(&pipe) && x < w - 1).then(|| (y, x + 1)), // East
+                (['|', 'L', 'J'].contains(&pipe) && y > 0).then(|| (y - 1, x)), // North
+                (['|', '7', 'F'].contains(&pipe) && y < h - 1).then(|| (y + 1, x)), // South
+            ]
+            .into_iter()
+            .flatten()
+            .collect()
+        }
+    }
 }
