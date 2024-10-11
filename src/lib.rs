@@ -1,5 +1,5 @@
 pub mod grid {
-    use ndarray::{Array1, Array2};
+    use ndarray::Array2;
 
     /// Parses a sring representing a grid of characters into a 2D array.
     pub fn parse_char_grid<T, F>(input: &str, parse_char: F) -> Array2<T>
@@ -9,13 +9,13 @@ pub mod grid {
     {
         let lines: Vec<&str> = input.trim().lines().collect();
         let rows = lines.len();
-        let input = lines
+        let input: Vec<T> = lines
             .iter()
             .flat_map(|line| line.trim().chars())
             .map(parse_char)
-            .collect::<Array1<T>>();
+            .collect();
         let cols = input.len() / rows;
-        input.to_shape((rows, cols)).unwrap().to_owned()
+        Array2::from_shape_vec((rows, cols), input).unwrap()
     }
 
     /// Returns the (up to four) valid compass neighbors of a position in a grid.
@@ -300,9 +300,9 @@ mod tests {
     #[test]
     fn lines_parse_regexs() {
         let input = "
-        a => x 
-        b => y 
-        c => z 
+        a => x
+        b => y
+        c => z
         ";
 
         let re = Regex::new(r"([a-z]) => ([a-z])").unwrap();
