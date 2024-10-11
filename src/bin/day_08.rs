@@ -51,6 +51,7 @@ struct Puzzle {
     instructions: Vec<char>,
     map: HashMap<&'static str, (&'static str, &'static str)>,
 }
+
 impl Puzzle {
     fn new(input: &'static str) -> Self {
         let (instructions, map) = input.split_once("\n\n").unwrap();
@@ -77,7 +78,7 @@ impl Puzzle {
         let mut step = 0;
         let mut step_len = 1;
         for &node in initial_nodes.iter() {
-            let path = self.path_from(node);
+            let path = Path::starting_from(node, self);
             while !terminal_nodes.contains(path.at_step(step)) {
                 step += step_len;
             }
@@ -85,9 +86,19 @@ impl Puzzle {
         }
         step
     }
+}
 
-    /// Construct a path from an initial node by following the instructions
-    fn path_from(&self, initial_node: &'static str) -> Path {
+/// A `Path` is a sequence of nodes each of which can be computed by index in costant time
+/// using Path::at_step(index).
+struct Path {
+    cycle_start: usize,
+    nodes: Vec<&'static str>,
+}
+
+impl Path {
+    /// Construct a path from an `initial_node` by following the instructions
+    /// found in `puzzle`.
+    fn starting_from(initial_node: &'static str, puzzle: &Puzzle) -> Path {
         // Traverse this iterator until a cycle is found
         let mut node = initial_node;
         let mut instr_ptr = 0;
@@ -100,25 +111,15 @@ impl Puzzle {
             }
             nodes.push(node);
             visited_states.insert(state, visited_states.len());
-            node = match self.instructions.get(instr_ptr).unwrap() {
-                'L' => self.map[node].0,
-                'R' => self.map[node].1,
+            node = match puzzle.instructions.get(instr_ptr).unwrap() {
+                'L' => puzzle.map[node].0,
+                'R' => puzzle.map[node].1,
                 instruction => panic!("Invalid instruction: {}", instruction),
             };
-            instr_ptr = (instr_ptr + 1) % self.instructions.len();
+            instr_ptr = (instr_ptr + 1) % puzzle.instructions.len();
         }
     }
-}
 
-/// A `Path` turns an initial node into a sequence of nodes by following
-/// the instructions. Nodes can be computed by index in costant time
-/// using Path::at_step(index).
-struct Path {
-    cycle_start: usize,
-    nodes: Vec<&'static str>,
-}
-
-impl Path {
     fn at_step(&self, index: usize) -> &'static str {
         let index = index
             .checked_sub(self.cycle_start)
