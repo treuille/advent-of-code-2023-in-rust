@@ -20,41 +20,17 @@ fn main() {
     println!();
 
     // Solve the puzzle with a breadth-first search
-    let mut dists = Array2::from_elem(grid.dim(), None);
-    let mut to_process: Vec<(usize, usize)> = grid
-        .indexed_iter()
-        .filter(|&(_, &pipe)| pipe == 'S')
-        .map(|(pos, _)| pos)
-        .collect();
-    for dist in 0.. {
-        //println!("dist: {} processing: {:?}", dist, to_process);
-        if to_process.is_empty() {
-            break;
-        }
-        let pos_iter = to_process.into_iter();
-        to_process = Vec::new();
-        for pos in pos_iter {
-            if dists[pos].is_none() {
-                dists[pos] = Some(dist);
-                to_process.extend(pipe_neighbors(pos, &grid));
-            }
-        }
-    }
+    let dists = dists_from_start(&grid);
 
-    println!("Answer: {}", dists.iter().filter_map(|&d| d).max().unwrap());
+    let sol_10a: usize = dists.iter().filter_map(|&d| d).max().unwrap();
+    let correct_sol_10a: usize = 6757;
+    println!("* 10a *");
+    println!("My solution: {sol_10a}");
+    println!("Correct solution: {correct_sol_10a}");
+    println!("Equal: {}\n", sol_10a == correct_sol_10a);
 
-    println!("dists:");
-    let dist_char: Array2<char> =
-        dists.map(|&d| d.map(|d| (d as u8 + b'0') as char).unwrap_or('.'));
-    print_grid(&dist_char);
+    solve_10b(&grid, &dists);
 
-    //let sol_10a: usize = 12;
-    //let correct_sol_10a: usize = 32;
-    //println!("* 10a *");
-    //println!("My solution: {sol_10a}");
-    //println!("Correct solution: {correct_sol_10a}");
-    //println!("Equal: {}\n", sol_10a == correct_sol_10a);
-    //
     //// Solve 10b
     //let sol_10b: usize = 56;
     //let correct_sol_10b: usize = 79;
@@ -64,6 +40,7 @@ fn main() {
     //println!("Equal: {}\n", sol_10b == correct_sol_10b);
 }
 
+/// Prints out a grid nice and simply
 fn print_grid<T: Display>(grid: &Array2<T>) {
     grid.rows().into_iter().for_each(|row| {
         row.iter().for_each(|cell| print!("{}", cell));
@@ -71,6 +48,12 @@ fn print_grid<T: Display>(grid: &Array2<T>) {
     });
 }
 
+/// Prints out a grid of distances nice and simply
+fn print_dist_grid(dists: &Array2<Option<usize>>) {
+    let dist_char: Array2<char> =
+        dists.map(|&d| d.map(|d| (d as u8 + b'0') as char).unwrap_or('.'));
+    print_grid(&dist_char);
+}
 /// Find the neighbors of a at a point, givend the pipe structure of the grid
 fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize)> {
     let pipe = grid[pos];
@@ -93,4 +76,36 @@ fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize
             .collect()
         }
     }
+}
+
+/// Calculate the distances from the start point to all other reachable points
+fn dists_from_start(grid: &Array2<char>) -> Array2<Option<usize>> {
+    let mut dists = Array2::from_elem(grid.dim(), None);
+    let mut to_process: Vec<(usize, usize)> = grid
+        .indexed_iter()
+        .filter(|&(_, &pipe)| pipe == 'S')
+        .map(|(pos, _)| pos)
+        .collect();
+    for dist in 0.. {
+        if to_process.is_empty() {
+            break;
+        }
+        let pos_iter = to_process.into_iter();
+        to_process = Vec::new();
+        for pos in pos_iter {
+            if dists[pos].is_none() {
+                dists[pos] = Some(dist);
+                to_process.extend(pipe_neighbors(pos, &grid));
+            }
+        }
+    }
+    dists
+}
+
+#[allow(unused_variables)]
+fn solve_10b(grid: &Array2<char>, dists: &Array2<Option<usize>>) {
+    println!("* 10b *");
+
+    println!("dists:");
+    print_dist_grid(dists);
 }
