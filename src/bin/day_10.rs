@@ -1,4 +1,5 @@
 use advent_of_code_2023_in_rust::grid::{neighbors, parse_char_grid};
+use itertools::izip;
 use ndarray::Array2;
 use std::fmt::Display;
 
@@ -54,7 +55,32 @@ fn print_dist_grid(dists: &Array2<Option<usize>>) {
         dists.map(|&d| d.map(|d| (d as u8 + b'0') as char).unwrap_or('.'));
     print_grid(&dist_char);
 }
-/// Find the neighbors of a at a point, givend the pipe structure of the grid
+
+/// Find the start cell and replace it with the correct pipe
+fn remove_start_cell(grid: &mut Array2<char>) -> (usize, usize) {
+    let (y, x) = grid
+        .indexed_iter()
+        .find(|&(_, &cell)| cell == 'S')
+        .map(|(pos, _)| pos)
+        .unwrap();
+    let (h, w) = grid.dim();
+    grid[(y, x)] = match (
+        x > 0 && pipe_neighbors((y, x - 1), grid).contains(&(y, x)), // West
+        x < w - 1 && pipe_neighbors((y, x + 1), grid).contains(&(y, x)), // East
+        y > 0 && pipe_neighbors((y - 1, x), grid).contains(&(y, x)), // North
+        y < h - 1 && pipe_neighbors((y + 1, x), grid).contains(&(y, x)), // South
+    ) {
+        (true, true, false, false) => '-',
+        (true, false, true, false) => 'J',
+        (true, false, false, true) => '7',
+        (false, true, true, false) => 'L',
+        (false, true, false, true) => 'F',
+        (false, false, true, true) => '|',
+        _ => unimplemented!("remove_start_cell"),
+    };
+    (y, x)
+}
+
 fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize)> {
     let pipe = grid[pos];
     match pipe {
@@ -102,10 +128,120 @@ fn dists_from_start(grid: &Array2<char>) -> Array2<Option<usize>> {
     dists
 }
 
-#[allow(unused_variables)]
+#[allow(unused_variables, unused_mut)]
 fn solve_10b(grid: &Array2<char>, dists: &Array2<Option<usize>>) {
     println!("* 10b *");
 
     println!("dists:");
     print_dist_grid(dists);
+    println!();
+
+    //// Test how rows traverses the grid
+    //let mut row_test: Array2<Option<usize>> = Array2::from_elem(grid.dim(), None);
+    //println!("row_test strides: {:?}", row_test.strides());
+    //println!();
+    //
+    //for mut row in row_test.rows_mut() {
+    //    //println!("row strides: {:?}", row.strides());
+    //    for (i, cell) in row.iter_mut().enumerate() {
+    //        *cell = Some(i);
+    //    }
+    //}
+    //println!("row_test:");
+    //print_dist_grid(&row_test);
+    //println!();
+
+    // Now we're going to compute the interior nodes
+    let mut interior: Array2<char> = Array2::from_elem(grid.dim(), ' ');
+
+    #[allow(unreachable_code, clippy::match_single_binding, clippy::never_loop)]
+    for (mut int_row, grid_row, dist_row) in izip!(interior.rows_mut(), grid.rows(), dists.rows()) {
+        let mut interior = false;
+        let mut last_pipe = ' ';
+        for (int_cell, (grid_cell, dist_cell)) in
+            izip!(int_row.iter_mut(), izip!(grid_row.iter(), dist_row.iter()))
+        {
+            *int_cell = match (last_pipe, dist_cell.map(|_| grid_cell)) {
+                //(_, Some('|')) => {
+                //    last_pipe = 'x';
+                //    interior = !interior;
+                //    '*'
+                //}
+                //(_, Some('-')) => {
+                //    last_pipe = 'y';
+                //    '*'
+                //}
+                ('J', Some('J')) => unreachable!("unreachable: JJ"),
+                ('7', Some('J')) => unreachable!("unreachable: 7J"),
+                ('L', Some('J')) => {
+                    last_pipe = ' ';
+                    '*'
+                }
+                ('F', Some('J')) => {
+                    last_pipe = ' ';
+                    interior = !interior;
+                    '*'
+                }
+                ('J', Some('7')) => unreachable!("unreachable: J7"),
+                ('7', Some('7')) => unreachable!("unreachable: 77"),
+                ('L', Some('7')) => {
+                    last_pipe = ' ';
+                    interior = !interior;
+                    '*'
+                }
+                ('F', Some('7')) => {
+                    last_pipe = ' ';
+                    '*'
+                }
+                ('J', Some('L')) => unreachable!("unreachable: JL"),
+                ('7', Some('L')) => unreachable!("unreachable: 7L"),
+                ('L', Some('L')) => unreachable!("unreachable: LL"),
+                ('F', Some('L')) => unreachable!("unreachable: FL"),
+                ('J', Some('F')) => unreachable!("unreachable: JF"),
+                ('7', Some('F')) => unreachable!("unreachable: 7F"),
+                ('L', Some('F')) => unreachable!("unreachable: LF"),
+                ('F', Some('F')) => unreachable!("unreachable: FF"),
+                ('J', Some('-')) => unreachable!("unreachable: J-"),
+                ('7', Some('-')) => unreachable!("unreachable: 7-"),
+                ('L', Some('-')) => '*',
+                ('F', Some('-')) => '*',
+                ('J', Some('|')) => {
+                    last_pipe = '7';
+                    interior = !interior;
+                    '*'
+                }
+                ('7', Some('|')) => {
+                    last_pipe = 'J';
+                    interior = !interior;
+                    '*'
+                }
+                ('L', Some('|')) => unreachable!("unreachable: L|"),
+                ('F', Some('|')) => unreachable!("unreachable: F|"),
+                (' ', Some('J')) => unreachable!("unexpected: J"),
+                (' ', Some('7')) => unreachable!("unexpected: 7"),
+                (' ', Some('L')) => {
+                    last_pipe = 'L';
+                    '*'
+                }
+                (' ', Some('F')) => {
+                    last_pipe = 'F';
+                    '*'
+                }
+                (' ', Some('|')) => {
+                    interior = !interior;
+                    '*'
+                }
+                (' ', Some('-')) => unreachable!("unexpected: -"),
+                (' ', None) => match interior {
+                    true => 'I',
+                    false => 'O',
+                },
+                x => unimplemented!("Not implemented yet: {:?}", x),
+            }
+        }
+    }
+
+    println!("interior:");
+    print_grid(&interior);
+    println!();
 }
