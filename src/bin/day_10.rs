@@ -71,7 +71,6 @@ fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize
     }
 }
 
-/// Calculate the distances from the start point to all other reachable points
 fn dists_from_start(grid: &Array2<char>, start_pos: (usize, usize)) -> Array2<Option<usize>> {
     let mut dists = Array2::from_elem(grid.dim(), None);
     let mut to_process: Vec<(usize, usize)> = vec![start_pos];
