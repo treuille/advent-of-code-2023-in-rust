@@ -50,27 +50,7 @@ fn remove_start_cell(grid: &mut Array2<char>) -> (usize, usize) {
     (y, x)
 }
 
-fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize)> {
-    let pipe = grid[pos];
-    match pipe {
-        '.' => Vec::new(),
-        'S' => unreachable!("start cell should have been removed"),
-        _ => {
-            let (y, x) = pos;
-            let (h, w) = grid.dim();
-            [
-                (['-', 'J', '7'].contains(&pipe) && x > 0).then(|| (y, x - 1)), // West
-                (['-', 'L', 'F'].contains(&pipe) && x < w - 1).then(|| (y, x + 1)), // East
-                (['|', 'L', 'J'].contains(&pipe) && y > 0).then(|| (y - 1, x)), // North
-                (['|', '7', 'F'].contains(&pipe) && y < h - 1).then(|| (y + 1, x)), // South
-            ]
-            .into_iter()
-            .flatten()
-            .collect()
-        }
-    }
-}
-
+// Computes distances from the start cell to all other cells along the pipes
 fn dists_from_start(grid: &Array2<char>, start_pos: (usize, usize)) -> Array2<Option<usize>> {
     let mut dists = Array2::from_elem(grid.dim(), None);
     let mut to_process: Vec<(usize, usize)> = vec![start_pos];
@@ -90,16 +70,34 @@ fn dists_from_start(grid: &Array2<char>, start_pos: (usize, usize)) -> Array2<Op
     dists
 }
 
+/// Computers the neighbors of a cell along the pipes
+fn pipe_neighbors((y, x): (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize)> {
+    let pipe = grid[(y, x)];
+    let (h, w) = grid.dim();
+    [
+        (['-', 'J', '7'].contains(&pipe) && x > 0).then(|| (y, x - 1)), // West
+        (['-', 'L', 'F'].contains(&pipe) && x < w - 1).then(|| (y, x + 1)), // East
+        (['|', 'L', 'J'].contains(&pipe) && y > 0).then(|| (y - 1, x)), // North
+        (['|', '7', 'F'].contains(&pipe) && y < h - 1).then(|| (y + 1, x)), // South
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+/// Find the maximum distance from the start cell
 fn solve_10a(dists: &Array2<Option<usize>>) -> usize {
     dists.iter().filter_map(|&d| d).max().unwrap()
 }
 
+/// Calculate the number of interior cells by rasterizing the grid
 fn solve_10b(grid: &Array2<char>, dists: &Array2<Option<usize>>) -> usize {
     let mut num_interior = 0;
     for (grid_row, dist_row) in grid.rows().into_iter().zip(dists.rows()) {
         let (mut interior, mut last_pipe) = (false, ' ');
         for (grid_cell, dist_cell) in grid_row.iter().zip(dist_row.iter()) {
             if dist_cell.is_some() {
+                // This means we are at a pipe cell on the path
                 (interior, last_pipe) = match (last_pipe, grid_cell) {
                     ('L', 'J') => (interior, ' '),
                     ('F', 'J') => (!interior, ' '),
