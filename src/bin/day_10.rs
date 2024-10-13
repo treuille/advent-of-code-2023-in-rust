@@ -3,32 +3,38 @@ use itertools::izip;
 use ndarray::Array2;
 use std::fmt::Display;
 
-#[allow(unused_must_use)]
+#[allow(unused_must_use, unreachable_code)]
 fn main() {
+    //test_remove_start_cell();
+    //unimplemented!();
+
     // Parse the input, counting the number of matches per card
-    //let input = include_str!("../../puzzle_inputs/day_10.txt");
+    let input = include_str!("../../puzzle_inputs/day_10.txt");
     //let input = include_str!("../../puzzle_inputs/day_10_test.txt");
-    let input = include_str!("../../puzzle_inputs/day_10_test_2.txt");
+    //let input = include_str!("../../puzzle_inputs/day_10_test_2.txt");
 
     //println!("input len: {}", input.len());
     //println!("input:\n{}", input);
 
     let ident = |c: char| c;
-    let grid = parse_char_grid(input, ident); // Solve 10a
+    let mut grid = parse_char_grid(input, ident); // Solve 10a
 
     println!("puzzle input:");
     print_grid(&grid);
     println!();
 
     // Solve the puzzle with a breadth-first search
-    let dists = dists_from_start(&grid);
+    let start_pos = remove_start_cell(&mut grid);
+    let dists = dists_from_start(&grid, start_pos);
 
-    let sol_10a: usize = dists.iter().filter_map(|&d| d).max().unwrap();
-    let correct_sol_10a: usize = 6757;
-    println!("* 10a *");
-    println!("My solution: {sol_10a}");
-    println!("Correct solution: {correct_sol_10a}");
-    println!("Equal: {}\n", sol_10a == correct_sol_10a);
+    //let sol_10a: usize = dists.iter().filter_map(|&d| d).max().unwrap();
+    //let correct_sol_10a: usize = 6757;
+    //println!("* 10a *");
+    //println!("My solution: {sol_10a}");
+    //println!("Correct solution: {correct_sol_10a}");
+    //println!("Equal: {}\n", sol_10a == correct_sol_10a);
+    //
+    //unimplemented!("Just testing 10a for now");
 
     solve_10b(&grid, &dists);
 
@@ -57,6 +63,7 @@ fn print_dist_grid(dists: &Array2<Option<usize>>) {
 }
 
 /// Find the start cell and replace it with the correct pipe
+#[allow(dead_code)]
 fn remove_start_cell(grid: &mut Array2<char>) -> (usize, usize) {
     let (y, x) = grid
         .indexed_iter()
@@ -76,18 +83,59 @@ fn remove_start_cell(grid: &mut Array2<char>) -> (usize, usize) {
         (false, true, true, false) => 'L',
         (false, true, false, true) => 'F',
         (false, false, true, true) => '|',
-        _ => unimplemented!("remove_start_cell"),
+        neighbors => unreachable!("impossible neighbors: {:?}", neighbors),
     };
     (y, x)
+}
+
+fn test_remove_start_cell() {
+    let input = r#"
+.........
+...F-7...
+...|.|...
+.F-J.L-7.
+.|.....|.
+.L-7.F-J.
+...|.|...
+...L-J...
+........."#
+        .trim();
+
+    let ident = |c: char| c;
+    let grid = parse_char_grid(input, ident); // Solve 10a
+    print_grid(&grid);
+
+    let pipe_pos: Vec<(usize, usize)> = grid
+        .indexed_iter()
+        .filter(|&(_, &cell)| cell != '.')
+        .map(|(pos, _)| pos)
+        .collect();
+    println!("pipe_pos: {:?}", pipe_pos);
+
+    for pos in pipe_pos {
+        let mut grid = grid.clone();
+        let pipe = grid[pos];
+        grid[pos] = 'S';
+        let start_pos = remove_start_cell(&mut grid);
+        println!("pipe: {}", pipe);
+        println!("start_pos: {:?}", start_pos);
+        print_grid(&grid);
+        println!();
+        assert_eq!(pos, start_pos);
+        assert_eq!(pipe, grid[pos]);
+    }
+
+    unimplemented!("All tests passed!");
 }
 
 fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize)> {
     let pipe = grid[pos];
     match pipe {
         '.' => Vec::new(),
-        'S' => neighbors(pos, grid.dim())
-            .filter(|&neightbor| pipe_neighbors(neightbor, grid).contains(&pos))
-            .collect(),
+        'S' => unreachable!("Start cell should have been removed"),
+        //'S' => neighbors(pos, grid.dim())
+        //    .filter(|&neightbor| pipe_neighbors(neightbor, grid).contains(&pos))
+        //    .collect(),
         _ => {
             let (y, x) = pos;
             let (h, w) = grid.dim();
@@ -105,13 +153,9 @@ fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize
 }
 
 /// Calculate the distances from the start point to all other reachable points
-fn dists_from_start(grid: &Array2<char>) -> Array2<Option<usize>> {
+fn dists_from_start(grid: &Array2<char>, start_pos: (usize, usize)) -> Array2<Option<usize>> {
     let mut dists = Array2::from_elem(grid.dim(), None);
-    let mut to_process: Vec<(usize, usize)> = grid
-        .indexed_iter()
-        .filter(|&(_, &pipe)| pipe == 'S')
-        .map(|(pos, _)| pos)
-        .collect();
+    let mut to_process: Vec<(usize, usize)> = vec![start_pos];
     for dist in 0.. {
         if to_process.is_empty() {
             break;
@@ -121,7 +165,7 @@ fn dists_from_start(grid: &Array2<char>) -> Array2<Option<usize>> {
         for pos in pos_iter {
             if dists[pos].is_none() {
                 dists[pos] = Some(dist);
-                to_process.extend(pipe_neighbors(pos, &grid));
+                to_process.extend(pipe_neighbors(pos, grid));
             }
         }
     }
@@ -244,4 +288,9 @@ fn solve_10b(grid: &Array2<char>, dists: &Array2<Option<usize>>) {
     println!("interior:");
     print_grid(&interior);
     println!();
+
+    // Count the number of interior cells
+    let num_interior: usize = interior.iter().filter(|&&cell| cell == 'I').count();
+    println!("num_interior: {}", num_interior);
+    unimplemented!("Just testing 10b for now");
 }
