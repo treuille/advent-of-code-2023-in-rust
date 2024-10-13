@@ -4,35 +4,12 @@ use itertools::Itertools;
 #[allow(unused_imports)]
 use ndarray::Array2;
 
-// .5...........
-// .##.........6
-// ..##.........
-// ...##........
-// ....##...7...
-// 8....9.......
-
-//   01234
-// 0 *....
-// 1 ##...
-// 2 .##..
-// 3 ..##.
-// 4 ...##
-// 5 ....*
-
-//   01234
-// 0 *....
-// 1 #....
-// 2 #....
-// 3 #....
-// 4 #....
-// 5 .####
-
-// (0,0) -> (4,5) = 9
-
-// distance = 9
-
-#[allow(unused_mut)]
+#[allow(unused_mut, unreachable_code)]
 fn main() {
+    //test_dist();
+    //unimplemented!("just testing");
+
+    //let input = include_str!("../../puzzle_inputs/day_11.txt");
     let input = include_str!("../../puzzle_inputs/day_11_test.txt");
     let parse_cell = |c: char| match c {
         '.' => false,
@@ -52,7 +29,7 @@ fn main() {
     let grid2: Vec<bool> = grid
         .rows()
         .into_iter()
-        .map(|row| {
+        .flat_map(|row| {
             if row.iter().all(|&cell| !cell) {
                 empty_rows += 1;
                 vec![row, row]
@@ -60,7 +37,6 @@ fn main() {
                 vec![row]
             }
         })
-        .flatten()
         .flatten()
         .copied()
         .collect();
@@ -85,14 +61,18 @@ fn main() {
         .indexed_iter()
         .filter_map(|(idx, &cell)| cell.then_some(idx))
         .tuple_combinations::<(_, _)>()
-        .map(|((y1, x1), (y2, x2))| {
-            let min_x = x1.min(x2);
-            let max_x = x1.max(x2);
-            let mut min_y = y1.min(y2);
-            let mut max_y = y1.max(y2);
+        .enumerate()
+        //.map(|(iter, ((y1, x1), (y2, x2)))| {
+        .map(|(iter, ((y1, x1), (y2, x2)))| {
+            //let min_x = x1.min(x2);
+            //let max_x = x1.max(x2);
+            //let min_y = y1.min(y2);
+            //let max_y = y1.max(y2);
             //min_y += expansion[min_y];
             //max_y += expansion[max_y];
-            max_x - min_x + max_y - min_y
+            let dist = distance((y1, x1), (y2, x2), None);
+            println!("{}: ({}, {}) -> ({}, {}) = {}", iter, x1, y1, x2, y2, dist);
+            dist
         })
         .sum();
     println!("min_dists: {}", min_dists);
@@ -102,13 +82,14 @@ fn main() {
         .filter_map(|(idx, &cell)| cell.then_some(idx))
         .tuple_combinations::<(_, _)>()
         .map(|((y1, x1), (y2, x2))| {
-            let min_x = x1.min(x2);
-            let max_x = x1.max(x2);
-            let mut min_y = y1.min(y2);
-            let mut max_y = y1.max(y2);
-            min_y += expansion[min_y];
-            max_y += expansion[max_y];
-            max_x - min_x + max_y - min_y
+            distance((y1, x1), (y2, x2), Some(&expansion))
+            //let min_x = x1.min(x2);
+            //let max_x = x1.max(x2);
+            //let mut min_y = y1.min(y2);
+            //let mut max_y = y1.max(y2);
+            //min_y += expansion[min_y];
+            //max_y += expansion[max_y];
+            //max_x - min_x + max_y - min_y
         })
         .sum();
     println!("min_dists: {}", min_dists);
@@ -137,4 +118,53 @@ fn print_grid(grid: &Array2<bool>) {
         }
         println!();
     }
+}
+
+fn distance(
+    (y1, x1): (usize, usize),
+    (y2, x2): (usize, usize),
+    expansion: Option<&[usize]>,
+) -> usize {
+    let min_x = x1.min(x2);
+    let max_x = x1.max(x2);
+    let min_y = y1.min(y2);
+    let max_y = y1.max(y2);
+    let delta_expansion = match expansion {
+        Some(expansion) => expansion[max_y] - expansion[min_y],
+        None => 0,
+    };
+    max_x - min_x + max_y - min_y + delta_expansion
+}
+
+#[allow(dead_code)]
+fn test_dist() {
+    let input: &str = r#"
+....1........
+.........2...
+3............
+.............
+.............
+........4....
+.5...........
+.##.........6
+..##.........
+...##........
+....##...7...
+8....9......."#
+        .trim();
+    println!("input: {}", input);
+    let digit_cell = |c: char| c.to_digit(10);
+    let grid = parse_char_grid(input, digit_cell);
+    println!("grid: {:?}", grid);
+    let find_cell = |d: u32| {
+        grid.indexed_iter()
+            .find(|(_, &cell)| cell == Some(d))
+            .unwrap()
+            .0
+    };
+    let pos_1 = find_cell(5);
+    let pos_2 = find_cell(9);
+    println!("pos_1: {:?}", pos_1);
+    println!("pos_2: {:?}", pos_2);
+    println!("dist: {:?}", distance(pos_1, pos_2, None));
 }
