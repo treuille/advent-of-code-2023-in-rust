@@ -1,69 +1,31 @@
-use advent_of_code_2023_in_rust::grid::{neighbors, parse_char_grid};
-use itertools::izip;
+use advent_of_code_2023_in_rust::grid::parse_char_grid;
 use ndarray::Array2;
-use std::fmt::Display;
 
-#[allow(unused_must_use, unreachable_code)]
 fn main() {
-    //test_remove_start_cell();
-    //unimplemented!();
-
-    // Parse the input, counting the number of matches per card
+    // Parse the input, find the start cell and calculate the distances from it
     let input = include_str!("../../puzzle_inputs/day_10.txt");
-    //let input = include_str!("../../puzzle_inputs/day_10_test.txt");
-    //let input = include_str!("../../puzzle_inputs/day_10_test_2.txt");
-
-    //println!("input len: {}", input.len());
-    //println!("input:\n{}", input);
-
-    let ident = |c: char| c;
-    let mut grid = parse_char_grid(input, ident); // Solve 10a
-
-    println!("puzzle input:");
-    print_grid(&grid);
-    println!();
-
-    // Solve the puzzle with a breadth-first search
+    let mut grid = parse_char_grid(input, |c| c);
     let start_pos = remove_start_cell(&mut grid);
     let dists = dists_from_start(&grid, start_pos);
 
-    //let sol_10a: usize = dists.iter().filter_map(|&d| d).max().unwrap();
-    //let correct_sol_10a: usize = 6757;
-    //println!("* 10a *");
-    //println!("My solution: {sol_10a}");
-    //println!("Correct solution: {correct_sol_10a}");
-    //println!("Equal: {}\n", sol_10a == correct_sol_10a);
-    //
-    //unimplemented!("Just testing 10a for now");
+    // Solve 10a
+    let sol_10a: usize = solve_10a(&dists);
+    let correct_sol_10a: usize = 6757;
+    println!("* 10a *");
+    println!("My solution: {sol_10a}");
+    println!("Correct solution: {correct_sol_10a}");
+    println!("Equal: {}\n", sol_10a == correct_sol_10a);
 
-    solve_10b(&grid, &dists);
-
-    //// Solve 10b
-    //let sol_10b: usize = 56;
-    //let correct_sol_10b: usize = 79;
-    //println!("* 10b *");
-    //println!("My solution: {sol_10b}");
-    //println!("Correct solution: {correct_sol_10b}");
-    //println!("Equal: {}\n", sol_10b == correct_sol_10b);
-}
-
-/// Prints out a grid nice and simply
-fn print_grid<T: Display>(grid: &Array2<T>) {
-    grid.rows().into_iter().for_each(|row| {
-        row.iter().for_each(|cell| print!("{}", cell));
-        println!();
-    });
-}
-
-/// Prints out a grid of distances nice and simply
-fn print_dist_grid(dists: &Array2<Option<usize>>) {
-    let dist_char: Array2<char> =
-        dists.map(|&d| d.map(|d| (d as u8 + b'0') as char).unwrap_or('.'));
-    print_grid(&dist_char);
+    // Solve 10b
+    let sol_10b: usize = solve_10b(&grid, &dists);
+    let correct_sol_10b: usize = 523;
+    println!("* 10b *");
+    println!("My solution: {sol_10b}");
+    println!("Correct solution: {correct_sol_10b}");
+    println!("Equal: {}\n", sol_10b == correct_sol_10b);
 }
 
 /// Find the start cell and replace it with the correct pipe
-#[allow(dead_code)]
 fn remove_start_cell(grid: &mut Array2<char>) -> (usize, usize) {
     let (y, x) = grid
         .indexed_iter()
@@ -88,54 +50,11 @@ fn remove_start_cell(grid: &mut Array2<char>) -> (usize, usize) {
     (y, x)
 }
 
-fn test_remove_start_cell() {
-    let input = r#"
-.........
-...F-7...
-...|.|...
-.F-J.L-7.
-.|.....|.
-.L-7.F-J.
-...|.|...
-...L-J...
-........."#
-        .trim();
-
-    let ident = |c: char| c;
-    let grid = parse_char_grid(input, ident); // Solve 10a
-    print_grid(&grid);
-
-    let pipe_pos: Vec<(usize, usize)> = grid
-        .indexed_iter()
-        .filter(|&(_, &cell)| cell != '.')
-        .map(|(pos, _)| pos)
-        .collect();
-    println!("pipe_pos: {:?}", pipe_pos);
-
-    for pos in pipe_pos {
-        let mut grid = grid.clone();
-        let pipe = grid[pos];
-        grid[pos] = 'S';
-        let start_pos = remove_start_cell(&mut grid);
-        println!("pipe: {}", pipe);
-        println!("start_pos: {:?}", start_pos);
-        print_grid(&grid);
-        println!();
-        assert_eq!(pos, start_pos);
-        assert_eq!(pipe, grid[pos]);
-    }
-
-    unimplemented!("All tests passed!");
-}
-
 fn pipe_neighbors(pos: (usize, usize), grid: &Array2<char>) -> Vec<(usize, usize)> {
     let pipe = grid[pos];
     match pipe {
         '.' => Vec::new(),
-        'S' => unreachable!("Start cell should have been removed"),
-        //'S' => neighbors(pos, grid.dim())
-        //    .filter(|&neightbor| pipe_neighbors(neightbor, grid).contains(&pos))
-        //    .collect(),
+        'S' => unreachable!("start cell should have been removed"),
         _ => {
             let (y, x) = pos;
             let (h, w) = grid.dim();
@@ -172,125 +91,34 @@ fn dists_from_start(grid: &Array2<char>, start_pos: (usize, usize)) -> Array2<Op
     dists
 }
 
-#[allow(unused_variables, unused_mut)]
-fn solve_10b(grid: &Array2<char>, dists: &Array2<Option<usize>>) {
-    println!("* 10b *");
+fn solve_10a(dists: &Array2<Option<usize>>) -> usize {
+    dists.iter().filter_map(|&d| d).max().unwrap()
+}
 
-    println!("dists:");
-    print_dist_grid(dists);
-    println!();
-
-    //// Test how rows traverses the grid
-    //let mut row_test: Array2<Option<usize>> = Array2::from_elem(grid.dim(), None);
-    //println!("row_test strides: {:?}", row_test.strides());
-    //println!();
-    //
-    //for mut row in row_test.rows_mut() {
-    //    //println!("row strides: {:?}", row.strides());
-    //    for (i, cell) in row.iter_mut().enumerate() {
-    //        *cell = Some(i);
-    //    }
-    //}
-    //println!("row_test:");
-    //print_dist_grid(&row_test);
-    //println!();
-
-    // Now we're going to compute the interior nodes
-    let mut interior: Array2<char> = Array2::from_elem(grid.dim(), ' ');
-
-    #[allow(unreachable_code, clippy::match_single_binding, clippy::never_loop)]
-    for (mut int_row, grid_row, dist_row) in izip!(interior.rows_mut(), grid.rows(), dists.rows()) {
-        let mut interior = false;
-        let mut last_pipe = ' ';
-        for (int_cell, (grid_cell, dist_cell)) in
-            izip!(int_row.iter_mut(), izip!(grid_row.iter(), dist_row.iter()))
-        {
-            *int_cell = match (last_pipe, dist_cell.map(|_| grid_cell)) {
-                //(_, Some('|')) => {
-                //    last_pipe = 'x';
-                //    interior = !interior;
-                //    '*'
-                //}
-                //(_, Some('-')) => {
-                //    last_pipe = 'y';
-                //    '*'
-                //}
-                ('J', Some('J')) => unreachable!("unreachable: JJ"),
-                ('7', Some('J')) => unreachable!("unreachable: 7J"),
-                ('L', Some('J')) => {
-                    last_pipe = ' ';
-                    '*'
+fn solve_10b(grid: &Array2<char>, dists: &Array2<Option<usize>>) -> usize {
+    let mut num_interior = 0;
+    for (grid_row, dist_row) in grid.rows().into_iter().zip(dists.rows()) {
+        let (mut interior, mut last_pipe) = (false, ' ');
+        for (grid_cell, dist_cell) in grid_row.iter().zip(dist_row.iter()) {
+            if dist_cell.is_some() {
+                (interior, last_pipe) = match (last_pipe, grid_cell) {
+                    ('L', 'J') => (interior, ' '),
+                    ('F', 'J') => (!interior, ' '),
+                    ('L', '7') => (!interior, ' '),
+                    ('F', '7') => (interior, ' '),
+                    ('L', '-') => (interior, last_pipe),
+                    ('F', '-') => (interior, last_pipe),
+                    ('J', '|') => (!interior, '7'),
+                    ('7', '|') => (!interior, 'J'),
+                    (' ', 'L') => (interior, 'L'),
+                    (' ', 'F') => (interior, 'F'),
+                    (' ', '|') => (!interior, last_pipe),
+                    x => unreachable!("unreachable: {:?}", x),
                 }
-                ('F', Some('J')) => {
-                    last_pipe = ' ';
-                    interior = !interior;
-                    '*'
-                }
-                ('J', Some('7')) => unreachable!("unreachable: J7"),
-                ('7', Some('7')) => unreachable!("unreachable: 77"),
-                ('L', Some('7')) => {
-                    last_pipe = ' ';
-                    interior = !interior;
-                    '*'
-                }
-                ('F', Some('7')) => {
-                    last_pipe = ' ';
-                    '*'
-                }
-                ('J', Some('L')) => unreachable!("unreachable: JL"),
-                ('7', Some('L')) => unreachable!("unreachable: 7L"),
-                ('L', Some('L')) => unreachable!("unreachable: LL"),
-                ('F', Some('L')) => unreachable!("unreachable: FL"),
-                ('J', Some('F')) => unreachable!("unreachable: JF"),
-                ('7', Some('F')) => unreachable!("unreachable: 7F"),
-                ('L', Some('F')) => unreachable!("unreachable: LF"),
-                ('F', Some('F')) => unreachable!("unreachable: FF"),
-                ('J', Some('-')) => unreachable!("unreachable: J-"),
-                ('7', Some('-')) => unreachable!("unreachable: 7-"),
-                ('L', Some('-')) => '*',
-                ('F', Some('-')) => '*',
-                ('J', Some('|')) => {
-                    last_pipe = '7';
-                    interior = !interior;
-                    '*'
-                }
-                ('7', Some('|')) => {
-                    last_pipe = 'J';
-                    interior = !interior;
-                    '*'
-                }
-                ('L', Some('|')) => unreachable!("unreachable: L|"),
-                ('F', Some('|')) => unreachable!("unreachable: F|"),
-                (' ', Some('J')) => unreachable!("unexpected: J"),
-                (' ', Some('7')) => unreachable!("unexpected: 7"),
-                (' ', Some('L')) => {
-                    last_pipe = 'L';
-                    '*'
-                }
-                (' ', Some('F')) => {
-                    last_pipe = 'F';
-                    '*'
-                }
-                (' ', Some('|')) => {
-                    interior = !interior;
-                    '*'
-                }
-                (' ', Some('-')) => unreachable!("unexpected: -"),
-                (' ', None) => match interior {
-                    true => 'I',
-                    false => 'O',
-                },
-                x => unimplemented!("Not implemented yet: {:?}", x),
+            } else if interior {
+                num_interior += 1;
             }
         }
     }
-
-    println!("interior:");
-    print_grid(&interior);
-    println!();
-
-    // Count the number of interior cells
-    let num_interior: usize = interior.iter().filter(|&&cell| cell == 'I').count();
-    println!("num_interior: {}", num_interior);
-    unimplemented!("Just testing 10b for now");
+    num_interior
 }
