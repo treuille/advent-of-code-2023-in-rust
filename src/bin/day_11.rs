@@ -29,9 +29,8 @@ fn main() {
 /// Returns the expansion of the grid in the given axis, as a running sum
 fn expansion(grid: &Array2<bool>, axis: usize) -> Vec<usize> {
     grid.axis_iter(Axis(axis))
-        .map(|row| row.iter().all(|&cell| !cell))
-        .scan(0, |acc, is_empty| {
-            if is_empty {
+        .scan(0, |acc, row| {
+            if row.iter().all(|&cell| !cell) {
                 *acc += 1;
             }
             Some(*acc)
