@@ -1,8 +1,8 @@
 #[allow(unreachable_code, clippy::never_loop)]
 fn main() {
     // Parse the input, counting the number of matches per card
-    //let input = include_str!("../../puzzle_inputs/day_12.txt");
-    let input = include_str!("../../puzzle_inputs/day_12_test_1.txt");
+    let input = include_str!("../../puzzle_inputs/day_12.txt");
+    //let input = include_str!("../../puzzle_inputs/day_12_test_1.txt");
     ////println!("input len: {}", input.len());
     //println!("input:\n{}", input);
     //println!("parse_input(input): {:?}", parse_input(input));
@@ -30,7 +30,7 @@ fn main() {
 
     // Solve 12b
     let sol_12b: usize = solve(&puzzle);
-    let correct_sol_12b: usize = 79;
+    let correct_sol_12b: usize = 525152;
     println!("* 12b *");
     println!("My solution: {sol_12b}");
     println!("Correct solution: {correct_sol_12b}");
@@ -79,57 +79,47 @@ fn count_arrangements(
     n_contiguous: usize,
     damaged_springs: &[usize],
 ) -> usize {
-    //println!("first_spring: {:?}", first_spring);
-    //println!("rest_of_springs: {:?}", rest_of_springs);
-    //println!("n_contiguous: {}", n_contiguous);
-    //println!("damaged_springs: {:?}", damaged_springs);
-
     let (next_spring, subsequent_springs): (Option<char>, &[char]) = rest_of_springs
         .split_first()
         .map_or((None, &[]), |(first_spring, rest_of_springs)| {
             (Some(*first_spring), rest_of_springs)
         });
 
-    //println!("next_spring: {:?}", next_spring);
-    //println!("subsequent_springs: {:?}", subsequent_springs);
-
-    match first_spring {
-        Some('.') => {
-            if n_contiguous == 0 {
-                count_arrangements(next_spring, subsequent_springs, 0, damaged_springs)
-            } else if Some(&n_contiguous) == damaged_springs.first() {
-                count_arrangements(next_spring, subsequent_springs, 0, &damaged_springs[1..])
-            } else {
-                0
-            }
+    let matches_next_damaged_spring = Some(&n_contiguous) == damaged_springs.first();
+    match (
+        first_spring,
+        n_contiguous,
+        matches_next_damaged_spring,
+        damaged_springs.len(),
+    ) {
+        (Some('.'), 0, _, _) => {
+            count_arrangements(next_spring, subsequent_springs, 0, damaged_springs)
         }
-        Some('#') => count_arrangements(
+        (Some('.'), _, true, _) => {
+            count_arrangements(next_spring, subsequent_springs, 0, &damaged_springs[1..])
+        }
+        (Some('.'), _, _, _) => 0,
+        (Some('#'), _, _, _) => count_arrangements(
             next_spring,
             subsequent_springs,
             n_contiguous + 1,
             damaged_springs,
         ),
-        Some('?') => {
+        (Some('?'), _, true, _) => {
+            count_arrangements(Some('.'), rest_of_springs, n_contiguous, damaged_springs)
+        }
+        (Some('?'), _, _, 0) => {
+            count_arrangements(Some('.'), rest_of_springs, n_contiguous, damaged_springs)
+        }
+        (Some('?'), _, _, _) => {
             count_arrangements(Some('.'), rest_of_springs, n_contiguous, damaged_springs)
                 + count_arrangements(Some('#'), rest_of_springs, n_contiguous, damaged_springs)
         }
-        None => {
-            if n_contiguous == 0 {
-                if damaged_springs.is_empty() {
-                    1
-                } else {
-                    0
-                }
-            } else if Some(&n_contiguous) == damaged_springs.first() {
-                if damaged_springs.len() == 1 {
-                    1
-                } else {
-                    0
-                }
-            } else {
-                0
-            }
-        }
+        (None, 0, _, 0) => 1,
+        (None, 0, _, _) => 0,
+        (None, _, true, 1) => 1,
+        (None, _, true, 0) => 0,
+        (None, _, _, _) => 0,
         _ => panic!("Invalid spring character: {:?}", first_spring),
     }
 }
