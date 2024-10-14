@@ -3,13 +3,9 @@ fn main() {
     // Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_12.txt");
     //let input = include_str!("../../puzzle_inputs/day_12_test_1.txt");
-    ////println!("input len: {}", input.len());
-    //println!("input:\n{}", input);
-    //println!("parse_input(input): {:?}", parse_input(input));
-
-    let puzzle = parse_input(input);
 
     // Solve 12a
+    let puzzle = parse_input(input);
     let sol_12a: usize = solve(&puzzle);
     let correct_sol_12a: usize = 7622;
     println!("* 12a *");
@@ -17,18 +13,8 @@ fn main() {
     println!("Correct solution: {correct_sol_12a}");
     println!("Equal: {}\n", sol_12a == correct_sol_12a);
 
-    let puzzle = increase_puzzle_size(puzzle);
-
-    //for (row, damaged_springs) in &puzzle {
-    //    println!("row: {:?}", row);
-    //    println!("damaged_springs: {:?}", damaged_springs);
-    //    println!();
-    //    break;
-    //}
-    //
-    //unimplemented!("early stop here");
-
     // Solve 12b
+    let puzzle = increase_puzzle_size(puzzle);
     let sol_12b: usize = solve(&puzzle);
     let correct_sol_12b: usize = 525152;
     println!("* 12b *");
@@ -42,6 +28,7 @@ fn solve(puzzle: &[(Vec<char>, Vec<usize>)]) -> usize {
     for (row, damaged_springs) in puzzle {
         println!("row: {:?}", row);
         println!("damaged_springs: {:?}", damaged_springs);
+        println!();
         let arrangements = count_arrangements(Some(row[0]), &row[1..], 0, damaged_springs);
         println!("arrangements: {}\n", arrangements);
         total_arrangements += arrangements;
@@ -79,6 +66,33 @@ fn count_arrangements(
     n_contiguous: usize,
     damaged_springs: &[usize],
 ) -> usize {
+    if *damaged_springs.first().unwrap_or(&0) < n_contiguous {
+        // Early return if we've already found too many contiguous damaged springs
+        return 0;
+    } else if n_contiguous == 0 {
+        // 14 would mean that we have 14 remaining springs to set
+        let springs_we_have_left: usize =
+            first_spring.map(|_| 1).unwrap_or(0) + rest_of_springs.len();
+
+        // 15 would mean that we need at least 15 more springs
+        // e.g. [4,3,1] -> ###.###.#
+        //let min_springs_we_need = damaged_springs.iter().sum::<usize>() + damaged_springs.len() - 1;
+        //let min_springs_we_need = damaged_springs.iter().sum::<usize>() + damaged_springs.len() - 1;
+        let min_springs_we_need: usize = damaged_springs.iter().sum();
+
+        if min_springs_we_need > springs_we_have_left {
+            //// TODO: Add early return explanation
+            //println!("first_spring: {:?}", first_spring);
+            //println!("rest_of_springs: {:?}", rest_of_springs);
+            //println!("rest_of_springs.len(): {}", rest_of_springs.len());
+            //println!("springs_we_have_left: {}", springs_we_have_left);
+            //println!();
+            //println!("damaged_springs: {:?}", damaged_springs);
+            //println!("min_springs_we_need: {}", min_springs_we_need);
+            //panic!("Early return A");
+            return 0;
+        }
+    }
     let (next_spring, subsequent_springs): (Option<char>, &[char]) = rest_of_springs
         .split_first()
         .map_or((None, &[]), |(first_spring, rest_of_springs)| {
