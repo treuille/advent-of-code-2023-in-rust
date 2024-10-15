@@ -65,6 +65,14 @@ fn increase_puzzle_size(puzzle: Vec<(Vec<char>, Vec<usize>)>) -> Vec<(Vec<char>,
 
 #[allow(unreachable_code, unused_variables, clippy::never_loop)]
 fn count_arrangements(mut row: &mut [char], mut damaged_springs: &[usize]) -> usize {
+    if row.iter().filter(|&&c| c != '.').count() < damaged_springs.iter().sum() {
+        //unimplemented!(
+        //    "CASE Z: \"{}\" {:?}",
+        //    row.iter().filter(|&&c| c != '.').collect::<String>(),
+        //    damaged_springs
+        //);
+        return 0;
+    }
     loop {
         match row.first() {
             Some(&'.') => {
