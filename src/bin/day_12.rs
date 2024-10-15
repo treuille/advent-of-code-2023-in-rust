@@ -1,15 +1,25 @@
-#[allow(unused_imports)]
-use std::path::PrefixComponent;
+//#[allow(unused_imports)]
+use cached::proc_macro::cached;
+use regex::Regex;
 
-#[allow(unreachable_code, clippy::never_loop)]
+/// A row of springs, eiher '.' (operational), '#' (damaged), or '?' (unknown)
+type Row = String;
+
+/// A list of contiguous damaged springs in a row
+type DamagedSprings = Vec<usize>;
+
+#[allow(unreachable_code)]
 fn main() {
+    //test_damaged_spring_regex();
+    //unimplemented!("test_damaged_spring_regex");
+
     // Parse the input, counting the number of matches per card
-    let input = include_str!("../../puzzle_inputs/day_12.txt");
-    //let input = include_str!("../../puzzle_inputs/day_12_test_1.txt");
+    //let input = include_str!("../../puzzle_inputs/day_12.txt");
+    let input = include_str!("../../puzzle_inputs/day_12_test_1.txt");
 
     // Solve 12a
-    let mut puzzle = parse_input(input);
-    let sol_12a: usize = solve(&mut puzzle);
+    let puzzle = parse_input(input);
+    let sol_12a: usize = solve(&puzzle);
     //let correct_sol_12a: usize = 7622;
     let correct_sol_12a: usize = 21;
     println!("* 12a *");
@@ -18,8 +28,8 @@ fn main() {
     println!("Equal: {}\n", sol_12a == correct_sol_12a);
 
     // Solve 12b
-    let mut puzzle = increase_puzzle_size(puzzle);
-    let sol_12b: usize = solve(&mut puzzle);
+    let puzzle = increase_puzzle_size(puzzle);
+    let sol_12b: usize = solve(&puzzle);
     let correct_sol_12b: usize = 525152;
     println!("* 12b *");
     println!("My solution: {sol_12b}");
@@ -27,7 +37,29 @@ fn main() {
     println!("Equal: {}\n", sol_12b == correct_sol_12b);
 }
 
-fn solve(puzzle: &mut [(Vec<char>, Vec<usize>)]) -> usize {
+#[cached]
+fn damaged_spring_regex(damaged_spring: usize) -> Regex {
+    let regex = format!(r"^[.?]*[#?]{{{damaged_spring}}}[.?]*$");
+    println!("regex: {}", regex);
+    return Regex::new(&regex).unwrap();
+}
+
+#[allow(dead_code)]
+fn test_damaged_spring_regex() {
+    let _regex = damaged_spring_regex(1);
+    let _regex = damaged_spring_regex(1);
+    let _regex = damaged_spring_regex(1);
+    let _regex = damaged_spring_regex(2);
+    let _regex = damaged_spring_regex(2);
+    let regex = damaged_spring_regex(3);
+    let test_patterns = [".#.", ".#.?", "?#.", "?#?", "?#.?", "?.?#.?", "?.##.?", "#"];
+    for pattern in test_patterns {
+        let is_match = regex.is_match(pattern);
+        println!("pattern: {}, is_match: {}", pattern, is_match);
+    }
+}
+
+fn solve(puzzle: &[(Row, DamagedSprings)]) -> usize {
     let mut total_arrangements = 0;
     for (row, damaged_springs) in puzzle {
         println!("row: {:?}", row);
@@ -41,129 +73,43 @@ fn solve(puzzle: &mut [(Vec<char>, Vec<usize>)]) -> usize {
     total_arrangements
 }
 
-fn increase_puzzle_size(puzzle: Vec<(Vec<char>, Vec<usize>)>) -> Vec<(Vec<char>, Vec<usize>)> {
+fn increase_puzzle_size(puzzle: Vec<(Row, DamagedSprings)>) -> Vec<(Row, DamagedSprings)> {
     puzzle
         .into_iter()
         .map(|(row, damaged_springs)| {
-            let row_len = row.len();
-            let damaged_spring_len = damaged_springs.len();
-            let row = row
-                .into_iter()
-                .chain(['?'])
-                .cycle()
-                .take(row_len * 5 + 4)
-                .collect();
+            let damaged_springs_len = damaged_springs.len();
+            let row = [
+                row.clone(),
+                row.clone(),
+                row.clone(),
+                row.clone(),
+                row.clone(),
+            ]
+            .join("?");
             let damaged_springs = damaged_springs
                 .into_iter()
                 .cycle()
-                .take(damaged_spring_len * 5)
+                .take(damaged_springs_len * 5)
                 .collect();
             (row, damaged_springs)
         })
         .collect()
 }
 
-#[allow(unreachable_code, unused_variables, clippy::never_loop)]
-fn count_arrangements(mut row: &mut [char], mut damaged_springs: &[usize]) -> usize {
-    if row.iter().filter(|&&c| c != '.').count() < damaged_springs.iter().sum() {
-        //unimplemented!(
-        //    "CASE Z: \"{}\" {:?}",
-        //    row.iter().filter(|&&c| c != '.').collect::<String>(),
-        //    damaged_springs
-        //);
-        return 0;
-    }
-    loop {
-        match row.first() {
-            Some(&'.') => {
-                // Skip any operational springs
-                //println!("row: {:?}", row);
-                //println!("damaged_springs: {:?}", damaged_springs);
-                //println!("Test case A1\n");
-                row = &mut row[1..];
-            }
-            Some(&'#') => {
-                // Skip any contiguous damaged springs
-                if let Some(&first_damaged_spring) = damaged_springs.first() {
-                    if row.len() < first_damaged_spring {
-                        //println!("row: {:?}", row);
-                        //println!("damaged_springs: {:?}", damaged_springs);
-                        //println!("Test case A2 - NO SOLUTION\n");
-                        return 0;
-                    }
-                    if row[0..first_damaged_spring].iter().all(|&c| c != '.') {
-                        //println!("row: {:?}", row);
-                        //println!("damaged_springs: {:?}", damaged_springs);
-                        //println!("Test case A3\n");
-                        row = &mut row[first_damaged_spring..];
-                        damaged_springs = &damaged_springs[1..];
-                        match row.first() {
-                            Some(&'#') => return 0,
-                            Some(_) => row = &mut row[1..],
-                            None => (),
-                        }
-                    } else {
-                        //println!("row: {:?}", row);
-                        //println!("damaged_springs: {:?}", damaged_springs);
-                        //println!("Test case B - NO SOLUTION\n");
-                        return 0;
-                    }
-                } else if row.iter().all(|&c| c != '#') {
-                    // The rest of the row is consistant with no more damaged springs
-                    //println!("row: {:?}", row);
-                    //println!("damaged_springs: {:?}", damaged_springs);
-                    //panic!("Test case C - FOUND A SOLUTION\n");
-                    return 1;
-                } else {
-                    // The rest of the row is *inconsistant* with no more damaged springs
-                    //println!("row: {:?}", row);
-                    //println!("damaged_springs: {:?}", damaged_springs);
-                    //println!("Test case D - NO SOLUTION\n");
-                    return 0;
-                }
-            }
-            Some(&'?') => {
-                //println!("row: {:?}", row);
-                //println!("damaged_springs: {:?}", damaged_springs);
-                //println!("Test case G\n");
-                row[0] = '.';
-                let case_a = count_arrangements(row, damaged_springs);
-                row[0] = '#';
-                let case_b = count_arrangements(row, damaged_springs);
-                row[0] = '?';
-                return case_a + case_b;
-            }
-            None => {
-                #[allow(clippy::redundant_pattern_matching)]
-                if let Some(_) = damaged_springs.first() {
-                    // Cannot satisfy
-                    //println!("row: {:?}", row);
-                    //println!("damaged_springs: {:?}", damaged_springs);
-                    //println!("Test case E - NO SOLUTION\n");
-                    return 0;
-                } else {
-                    //println!("row: {:?}", row);
-                    //println!("damaged_springs: {:?}", damaged_springs);
-                    //println!("Test case F - FOUND A SOLUTION\n");
-                    return 1;
-                }
-                // no springs left
-                unimplemented!("no springs left");
-            }
-            Some(&c) => unimplemented!("unexpected character: {}", c),
-        }
-    }
-    //if let Some(&spring) = row.first() {
-    unimplemented!("count_arrangements");
+#[allow(unused_variables)]
+fn count_arrangements(row: &str, damaged_springs: &[usize]) -> usize {
+    unimplemented!("count_arrangements")
 }
 
-fn parse_input(input: &'static str) -> Vec<(Vec<char>, Vec<usize>)> {
+fn parse_input(input: &'static str) -> Vec<(Row, DamagedSprings)> {
     input
         .lines()
         .map(|line| {
             let (row, damaged_springs) = line.split_once(" ").unwrap();
-            let damaged_springs = damaged_springs.split(",").flat_map(str::parse).collect();
-            (row.chars().collect(), damaged_springs)
+            (
+                row.to_string(),
+                damaged_springs.split(",").flat_map(str::parse).collect(),
+            )
         })
         .collect()
 }
