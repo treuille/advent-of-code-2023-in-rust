@@ -55,101 +55,54 @@ fn increase_puzzle_size(puzzle: Vec<(Row, DamagedSprings)>) -> Vec<(Row, Damaged
         .collect()
 }
 
-#[allow(dead_code)]
-fn rows_match(row_1: &str, row_2: &str) -> bool {
-    //fn rows_match(
-    //    row_1: impl IntoIterator<Item = char>,
-    //    row_2: impl IntoIterator<Item = char>,
-    //) -> bool {
-    row_1
-        .chars()
-        .zip(row_2.chars())
-        .all(|(a, b)| a == b || a == '?' || b == '?')
-    //let s1 = row_1.into_iter().collect::<String>();
-    //let s2 = row_2.into_iter().collect::<String>();
-    //let s1_clone = s1.clone();
-    //let s2_clone = s2.clone();
-    //let row_1 = s1_clone.chars();
-    //let row_2 = s2_clone.chars();
-    //let answer = row_1
-    //    .into_iter()
-    //    .zip(row_2)
-    //    .all(|(a, b)| a == b || a == '?' || b == '?');
-    //println!("row_1: {}, row_2: {}, answer: {}", s1, s2, answer);
-    //answer
-}
-
-// TODO: Add a short curcuit basd on the sum(damaged_springs)
-#[allow(unused_variables, unreachable_code)]
+#[allow(clippy::obfuscated_if_else)]
 fn count_arrangements(row: &str, damaged_springs: &[usize]) -> usize {
-    //println!(
-    //    "ENTRY\nrow: \"{}\"\ndamaged_springs: {:?}\n",
-    //    row, damaged_springs
-    //);
-
     if damaged_springs.is_empty() {
-        if row.chars().all(|c| c != '#') {
-            //println!("CASE A1 - return 1\n");
-            1
-        } else {
-            //println!("CASE A2 - return 0\n");
-            0
+        match row.chars().all(|c| c != '#') {
+            true => 1,
+            false => 0,
         }
     } else if row.chars().filter(|&c| c != '.').count() < damaged_springs.iter().sum() {
-        //println!("CASE B - return 0\n");
         0
     } else {
-        //println!(
-        //    "CASE C\nrow: \"{}\"\ndamaged_springs: {:?}\n",
-        //    row, damaged_springs
-        //);
+        // Split the damaged_springs into three parts damaged_springs[..,split,..]
         let split = damaged_springs.len() / 2;
-        assert!(split < damaged_springs.len());
         let left_damaged_springs = &damaged_springs[..split];
         let right_damaged_springs = &damaged_springs[(split + 1)..];
 
-        //let split_spring = get_split_string(
-        //    damaged_springs[split],
-        //    left_damaged_springs.is_empty(),
-        //    right_damaged_springs.is_empty(),
-        //);
+        // The split occurs implicitly at a string of the form ".#####."
+        // where the "#"s match the length of damaged_springs[split]
+        // and each terminal "." depends on having a nonempty left or right split,
+        // respectively. These "."s force separation of the damaged springs.
+        let split_spring_len = damaged_springs[split]
+            + (!left_damaged_springs.is_empty() as usize)
+            + (!right_damaged_springs.is_empty() as usize);
 
-        //let mut split_spring = String::with_capacity(damaged_springs[split] + 2);
-        let mut split_spring_len = damaged_springs[split];
-        if !left_damaged_springs.is_empty() {
-            //split_spring.push('.');
-            split_spring_len += 1;
-        }
-        //split_spring.extend(std::iter::repeat('#').take(damaged_springs[split]));
-        if !right_damaged_springs.is_empty() {
-            //split_spring.push('.');
-            split_spring_len += 1;
-        }
-        //let split_spring_len = split_spring.len();
-        assert!(split_spring_len <= row.len());
-
+        // The pot_damaged vector is an acceleration structure
+        // that prevents us from scanning the entire row of damaged springs
         let mut pot_damaged: Vec<usize> = Vec::with_capacity(row.len());
         pot_damaged.extend(row.chars().scan(0, |acc, c| {
-            if c != '.' {
-                *acc += 1;
-            }
+            *acc += (c == '.').then_some(0).unwrap_or(1);
             Some(*acc)
         }));
         let max_pot_damaged = pot_damaged.last().unwrap();
-        let lds_sum: usize = left_damaged_springs.iter().sum();
         let rds_sum: usize = right_damaged_springs.iter().sum();
+
+        // Scan the row for possible splits
         (0..=row.len() - split_spring_len)
-            //.filter(|&i| {
-            //    ((i == 0) && (lds_sum == 0)) || ((i > 0) && (pot_damaged[i - 1] >= lds_sum))
-            //})
             .filter(|&i| {
+                // Ensure the center split has suffciently many potential damaged springs
                 (i == 0)
                     || ((i > 0)
                         && (pot_damaged[i + split_spring_len - 1] - pot_damaged[i - 1]
                             >= damaged_springs[split]))
             })
-            .filter(|&i| (max_pot_damaged - pot_damaged[i + split_spring_len - 1]) >= rds_sum)
             .filter(|&i| {
+                // Ensure the right split has suffciently many potential damaged springs
+                (max_pot_damaged - pot_damaged[i + split_spring_len - 1]) >= rds_sum
+            })
+            .filter(|&i| {
+                // Ensure that the split is exctly valid
                 matches_row(
                     &row[i..],
                     damaged_springs[split],
@@ -158,11 +111,13 @@ fn count_arrangements(row: &str, damaged_springs: &[usize]) -> usize {
                 )
             })
             .map(|i| {
+                // Count the number of arrangements on the left
                 let left_row = &row[..i];
                 let left_arrangements = count_arrangements(left_row, left_damaged_springs);
                 if left_arrangements == 0 {
                     return 0;
                 }
+                // Count the number of arrangements on the right
                 let right_row = &row[(i + split_spring_len)..];
                 let right_arrangements = count_arrangements(right_row, right_damaged_springs);
                 left_arrangements * right_arrangements
@@ -171,7 +126,7 @@ fn count_arrangements(row: &str, damaged_springs: &[usize]) -> usize {
     }
 }
 
-#[allow(dead_code, unreachable_code)]
+// Implicitly matches the string ".#####." where the "#"s match the length of damaged_springs[split]
 fn matches_row(
     row: &str,
     damaged_spring: usize,
@@ -180,56 +135,19 @@ fn matches_row(
 ) -> bool {
     let mut row = row.chars();
     if !left_springs_empty && row.next() == Some('#') {
-        //panic!("Case A\nrow: {:?}\ndamaged_spring: {}\nleft_springs_empty: {}\nright_springs_empty: {}\n", row, damaged_spring, left_springs_empty, right_springs_empty);
         return false;
     }
     for _ in 0..damaged_spring {
         match row.next() {
-            Some('.') => {
-                //panic!("Case B\nrow: {:?}\ndamaged_spring: {}\nleft_springs_empty: {}\nright_springs_empty: {}\n", row, damaged_spring, left_springs_empty, right_springs_empty);
-                return false;
-            }
-            None => {
-                //panic!("Case C\nrow: {:?}\ndamaged_spring: {}\nleft_springs_empty: {}\nright_springs_empty: {}\n", row, damaged_spring, left_springs_empty, right_springs_empty);
-                return false;
-            }
+            Some('.') | None => return false,
             _ => (),
         }
     }
     if !right_springs_empty && row.next() == Some('#') {
-        //panic!("Case D\nrow: {:?}\ndamaged_spring: {}\nleft_springs_empty: {}\nright_springs_empty: {}\n", row, damaged_spring, left_springs_empty, right_springs_empty);
         return false;
     }
     true
-    //if !left_springs_empty && row.chars().next() != Some('.') {
-    //    return false;
-    //}
-    //row = &row[1..];
-    //if row.chars().take(damaged_spring).any(|c| c == '.') {
-    //    return false;
-    //}
-    //row = &row[damaged_spring..];
-    //if !right_springs_empty && row.chars().next() != Some('.') {
-    //    return false;
-    //}
-    //true
 }
-
-//#[cached]
-//fn get_split_string(
-//    damaged_spring: usize,
-//    left_springs_empty: bool,
-//    right_springs_empty: bool,
-//) -> String {
-//    let mut split_spring = "#".repeat(damaged_spring);
-//    if !left_springs_empty {
-//        split_spring.insert(0, '.');
-//    }
-//    if !right_springs_empty {
-//        split_spring.push('.');
-//    }
-//    split_spring
-//}
 
 fn parse_input(input: &'static str) -> Vec<(Row, DamagedSprings)> {
     input
