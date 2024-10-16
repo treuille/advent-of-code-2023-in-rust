@@ -44,17 +44,6 @@ fn solve(puzzle: &[(Row, DamagedSprings)]) -> usize {
         .sum()
 }
 
-fn increase_puzzle_size(puzzle: Vec<(Row, DamagedSprings)>) -> Vec<(Row, DamagedSprings)> {
-    puzzle
-        .into_iter()
-        .map(|(row, damaged_springs)| {
-            let row = iter::repeat(row).take(5).collect_vec().join("?");
-            let damaged_springs = iter::repeat(damaged_springs).take(5).flatten().collect();
-            (row, damaged_springs)
-        })
-        .collect()
-}
-
 #[cached]
 fn count_arrangements(row: Row, damaged_springs: DamagedSprings) -> usize {
     if damaged_springs.is_empty() {
@@ -143,6 +132,17 @@ fn parse_input(input: &'static str) -> Vec<(Row, DamagedSprings)> {
                 row.to_string(),
                 damaged_springs.split(",").flat_map(str::parse).collect(),
             )
+        })
+        .collect()
+}
+
+fn increase_puzzle_size(puzzle: Vec<(Row, DamagedSprings)>) -> Vec<(Row, DamagedSprings)> {
+    puzzle
+        .into_iter()
+        .map(|(row, damaged_springs)| {
+            let row = iter::repeat(row).take(5).collect_vec().join("?");
+            let damaged_springs = iter::repeat(damaged_springs).take(5).flatten().collect();
+            (row, damaged_springs)
         })
         .collect()
 }
