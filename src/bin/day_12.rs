@@ -59,16 +59,17 @@ fn increase_puzzle_size(puzzle: Vec<(Vec<char>, Vec<usize>)>) -> Vec<(Vec<char>,
 }
 
 #[cached]
-fn count_arrangements(mut row: Vec<char>, mut damaged_springs: Vec<usize>) -> usize {
+fn count_arrangements(row: Vec<char>, damaged_springs: Vec<usize>) -> usize {
     if row.iter().filter(|&&c| c != '.').count() < damaged_springs.iter().sum() {
         return 0;
     }
+    let mut row: &[char] = &row;
+    let mut damaged_springs: &[usize] = &damaged_springs;
     loop {
         match (row.first(), damaged_springs.first()) {
             (Some(&'.'), _) => {
                 // Remove the first element from row
-                //row = row.into_iter().skip(1).collect();
-                return count_arrangements(row.into_iter().skip(1).collect(), damaged_springs);
+                row = &row[1..];
             }
             (Some(&'#'), Some(&first_damaged_spring)) => {
                 // Skip any contiguous damaged springs
@@ -76,11 +77,11 @@ fn count_arrangements(mut row: Vec<char>, mut damaged_springs: Vec<usize>) -> us
                     return 0;
                 }
                 if row[0..first_damaged_spring].iter().all(|&c| c != '.') {
-                    row = row.into_iter().skip(first_damaged_spring).collect();
-                    damaged_springs = damaged_springs.into_iter().skip(1).collect();
+                    row = &row[first_damaged_spring..];
+                    damaged_springs = &damaged_springs[1..];
                     match row.first() {
                         Some(&'#') => return 0,
-                        Some(_) => row = row.into_iter().skip(1).collect(),
+                        Some(_) => row = &row[1..],
                         None => (),
                     }
                 } else {
@@ -98,11 +99,11 @@ fn count_arrangements(mut row: Vec<char>, mut damaged_springs: Vec<usize>) -> us
                 let case_a_row = iter::once('.')
                     .chain(row.iter().skip(1).copied())
                     .collect_vec();
-                let case_a = count_arrangements(case_a_row, damaged_springs.clone());
+                let case_a = count_arrangements(case_a_row, damaged_springs.to_vec());
                 let case_b_row = iter::once('#')
                     .chain(row.iter().skip(1).copied())
                     .collect_vec();
-                let case_b = count_arrangements(case_b_row, damaged_springs.clone());
+                let case_b = count_arrangements(case_b_row, damaged_springs.to_vec());
                 return case_a + case_b;
             }
             (None, Some(_)) => return 0,
