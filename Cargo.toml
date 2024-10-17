@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 # Specify a default binary to run if no --bin is specified
-default-run = "day_12"
+default-run = "day_13"
 
 [dependencies]
 cached = "0.53.1"
