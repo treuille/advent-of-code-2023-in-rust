@@ -2,7 +2,6 @@ use cached::proc_macro::cached;
 use itertools::Itertools;
 use std::iter;
 
-#[allow(unreachable_code, clippy::never_loop)]
 fn main() {
     // Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_12.txt");
@@ -10,8 +9,8 @@ fn main() {
     // Solve 12a
     let puzzle = parse_input(input);
     let sol_12a: usize = solve(&puzzle);
-    //let correct_sol_12a: usize = 7622;
-    let correct_sol_12a: usize = 21;
+    let correct_sol_12a: usize = 7622;
+    //let correct_sol_12a: usize = 21;
     println!("* 12a *");
     println!("My solution: {sol_12a}");
     println!("Correct solution: {correct_sol_12a}");
@@ -20,7 +19,8 @@ fn main() {
     // Solve 12b
     let puzzle = increase_puzzle_size(puzzle);
     let sol_12b: usize = solve(&puzzle);
-    let correct_sol_12b: usize = 525152;
+    //let correct_sol_12b: usize = 525152;
+    let correct_sol_12b: usize = 4964259839627;
     println!("* 12b *");
     println!("My solution: {sol_12b}");
     println!("Correct solution: {correct_sol_12b}");
@@ -28,12 +28,10 @@ fn main() {
 }
 
 fn solve(puzzle: &[(Vec<char>, Vec<usize>)]) -> usize {
-    let mut total_arrangements = 0;
-    for (row, damaged_springs) in puzzle {
-        let arrangements = count_arrangements(row.clone(), damaged_springs.clone());
-        total_arrangements += arrangements;
-    }
-    total_arrangements
+    puzzle
+        .iter()
+        .map(|(row, damaged_springs)| count_arrangements(row.clone(), damaged_springs.clone()))
+        .sum::<usize>()
 }
 
 fn increase_puzzle_size(puzzle: Vec<(Vec<char>, Vec<usize>)>) -> Vec<(Vec<char>, Vec<usize>)> {
@@ -70,6 +68,7 @@ fn count_arrangements(row: Vec<char>, damaged_springs: Vec<usize>) -> usize {
             (Some(&'.'), _) => {
                 // Remove the first element from row
                 row = &row[1..];
+                return count_arrangements(row.to_vec(), damaged_springs.to_vec());
             }
             (Some(&'#'), Some(&first_damaged_spring)) => {
                 // Skip any contiguous damaged springs
