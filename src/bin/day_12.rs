@@ -1,6 +1,13 @@
 use cached::proc_macro::cached;
 use std::iter;
 
+/// Initially, I had rejectd this dynamic programming solution because
+/// I didn't think of using memoization until I saw other solutions using it.
+/// Therefore, my `main` branch solution solves this in <4s *without* using a
+/// divide-and-conquer approach. However, I must admit that this solution is way
+/// faster, more elegant, and requires less code. I'm keeping the old solution though
+/// bcause I'm proud of it, and because it reflects an interesteing structure
+/// to the problem.
 fn main() {
     // Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_12.txt");
