@@ -9,7 +9,7 @@ fn main() {
         .map(|s| parse_char_grid(s, |c| c == '#'))
         .collect();
 
-    //// Solve 13a
+    // Solve 13a
     let sol_13a = solve_13a(&input);
     let correct_sol_13a: usize = 27300;
     println!("* 13a *");
@@ -31,7 +31,7 @@ fn solve_13a(input: &[Array2<bool>]) -> usize {
         .iter()
         .map(|grid| {
             let shape = grid.shape();
-            let mut axis_counts: [usize; 2] = [0, 0];
+            let axis_coefs: [usize; 2] = [100, 1];
             for axis in 0..2 {
                 for idx in 0..(shape[axis] - 1) {
                     for offset in 0.. {
@@ -52,14 +52,12 @@ fn solve_13a(input: &[Array2<bool>]) -> usize {
                         if vec_a != vec_b {
                             break;
                         } else if idx_a == 0 || (idx_b + 1) == shape[axis] {
-                            let delta_count = idx + 1;
-                            axis_counts[axis] += delta_count;
+                            return (idx + 1) * axis_coefs[axis];
                         }
                     }
                 }
             }
-
-            axis_counts[0] * 100 + axis_counts[1]
+            panic!("No reflections found");
         })
         .sum()
 }
@@ -69,7 +67,8 @@ fn solve_13b(input: &[Array2<bool>]) -> usize {
         .iter()
         .map(|grid| {
             let shape = grid.shape();
-            let mut axis_counts: [usize; 2] = [0, 0];
+            let axis_coefs: [usize; 2] = [100, 1];
+            //let mut axis_counts: [usize; 2] = [0, 0];
             let mut found_smudge: bool = false;
             for axis in 0..2 {
                 for idx in 0..(shape[axis] - 1) {
@@ -92,9 +91,7 @@ fn solve_13b(input: &[Array2<bool>]) -> usize {
                         let found_edge = idx_a == 0 || (idx_b + 1) == shape[axis];
                         match (disagreement, found_smudge, found_edge) {
                             (0, true, true) | (1, _, true) => {
-                                found_smudge = true;
-                                axis_counts[axis] += idx + 1;
-                                break;
+                                return (idx + 1) * axis_coefs[axis];
                             }
                             (1, false, _) => {
                                 found_smudge = true;
@@ -108,7 +105,8 @@ fn solve_13b(input: &[Array2<bool>]) -> usize {
                     }
                 }
             }
-            axis_counts[0] * 100 + axis_counts[1]
+            panic!("No reflections found");
+            //axis_counts[0] * 100 + axis_counts[1]
         })
         .sum()
 }
