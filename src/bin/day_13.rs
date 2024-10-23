@@ -106,7 +106,6 @@ fn solve_13b(input: &[Array2<bool>]) -> usize {
                 }
             }
             panic!("No reflections found");
-            //axis_counts[0] * 100 + axis_counts[1]
         })
         .sum()
 }
