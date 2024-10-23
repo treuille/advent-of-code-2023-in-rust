@@ -87,7 +87,7 @@ fn count_arrangements(row: &str, damaged_springs: DamagedSprings) -> usize {
     // Scan the row for possible splits
     let mut total_arrangements: usize = 0;
     for i in 0..=(row.len() - split_str_len) {
-        // Ensure the right split has suffciently many potential damaged springs.
+        // Ensure the right split has sufficiently many potential damaged springs.
         // Since right_pot_damaged is decreasing, we can break early.
         if pot_damaged[i + split_str_len] < right_damaged_springs.iter().sum() {
             break;
