@@ -8,12 +8,6 @@ type Row = String;
 /// A list of contiguous damaged springs in a row
 type DamagedSprings = Vec<usize>;
 
-// TODO: Before we can go on to day 13
-// * [x] Remove memoizaiton
-// * [x] Removed owned arguments and make zero allocations
-// * [x] Make the acceleration structure more efficient
-// * [ ] Update the docstring
-
 /// I discovered two solutions to this problem:
 ///
 /// 1. A dynamic programming approach, where you scan from the left
@@ -25,7 +19,10 @@ type DamagedSprings = Vec<usize>;
 ///    of `damaged_springs`.
 ///
 /// The first solution is too slow unless you memoize the results. (I put
-/// that first solution in the `fast_dynamic_memoize` branch.)
+/// that first solution in the `fast_dynamic_memoize` branch.) This file
+/// contains the second solution. It turns out it's slower than the first,
+/// but in some ways more interesting because it reflects the combinatorial
+/// structure of the problem more deeply.
 fn main() {
     // Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_12.txt");
