@@ -68,7 +68,6 @@ fn solve_13b(input: &[Array2<bool>]) -> usize {
         .map(|grid| {
             let shape = grid.shape();
             let axis_coefs: [usize; 2] = [100, 1];
-            //let mut axis_counts: [usize; 2] = [0, 0];
             let mut found_smudge: bool = false;
             for axis in 0..2 {
                 for idx in 0..(shape[axis] - 1) {
