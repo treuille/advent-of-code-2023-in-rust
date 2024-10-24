@@ -23,6 +23,9 @@ type DamagedSprings = Vec<usize>;
 /// contains the second solution. It turns out it's slower than the first,
 /// but in some ways more interesting because it reflects the combinatorial
 /// structure of the problem more deeply.
+///
+/// Now I'm going to work on a version which doesn't do any allocations.
+/// Before: 5.55s
 fn main() {
     // Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_12.txt");
@@ -49,14 +52,145 @@ fn main() {
 fn solve(puzzle: &[(Row, DamagedSprings)]) -> usize {
     puzzle
         .iter()
-        .map(|(row, damaged_springs)| count_arrangements(row, damaged_springs.clone()))
+        .map(|(row, damaged_springs)| {
+            let spring_sums = SpringSums::new(row);
+            count_arrangements(
+                row,
+                damaged_springs.clone(),
+                &SpringSumsSlice::new(&spring_sums),
+            )
+        })
         .sum()
 }
 
-fn count_arrangements(row: &str, damaged_springs: DamagedSprings) -> usize {
+struct SpringSums {
+    n_operational: Vec<usize>, // Running sum of '.' (from the right)
+    n_damaged: Vec<usize>,     // Running sum of '#' (from the right)
+    n_unknown: Vec<usize>,     // Running sum of '?' (from the right)
+}
+
+// This is an acceleration data structure which lets met quickly count the number of
+// ?s .? and #? in a row of springs. It stores running sums starting from the right of the
+// row.
+#[allow(dead_code)]
+struct SpringSumsSlice<'a> {
+    owned_vecs: &'a SpringSums,
+    start: usize,
+    end: usize,
+}
+impl SpringSums {
+    fn new(row: &str) -> Self {
+        // TODO: I can maybe make this more elegantly by doing a reverse loop
+        // with a match statement over the characater.
+        let n_operational: Vec<usize> = iter::once(0)
+            .chain(row.chars().rev().scan(0, |acc, c| {
+                *acc += (c == '.').then_some(0).unwrap_or(1);
+                Some(*acc)
+            }))
+            .collect();
+
+        let n_damaged: Vec<usize> = iter::once(0)
+            .chain(row.chars().rev().scan(0, |acc, c| {
+                *acc += (c == '#').then_some(0).unwrap_or(1);
+                Some(*acc)
+            }))
+            .collect();
+
+        let n_unknown: Vec<usize> = iter::once(0)
+            .chain(row.chars().rev().scan(0, |acc, c| {
+                *acc += (c == '?').then_some(0).unwrap_or(1);
+                Some(*acc)
+            }))
+            .collect();
+
+        SpringSums {
+            n_operational: n_operational.into_iter().rev().collect(),
+            n_damaged: n_damaged.into_iter().rev().collect(),
+            n_unknown: n_unknown.into_iter().rev().collect(),
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl<'a> SpringSumsSlice<'a> {
+    fn new(owned_vecs: &'a SpringSums) -> Self {
+        // There is a single length
+        let len = owned_vecs.n_operational.len();
+        assert_eq!(owned_vecs.n_damaged.len(), len);
+        assert_eq!(owned_vecs.n_unknown.len(), len);
+
+        SpringSumsSlice {
+            owned_vecs,
+            start: 0,
+            end: len,
+        }
+    }
+
+    fn len(&self) -> usize {
+        assert!(self.end >= self.start);
+        self.end - self.start
+    }
+
+    fn slice_left(&self, n: usize) -> Self {
+        let slice = SpringSumsSlice {
+            owned_vecs: self.owned_vecs,
+            start: self.start,
+            end: self.start + n,
+        };
+        //println!(
+        //    "slice_left: ({} {}) -{}-> ({} {})",
+        //    self.start, self.end, n, slice.start, slice.end
+        //);
+        assert!(slice.start <= slice.end);
+        slice
+    }
+
+    fn slice_right(&self, n: usize) -> Self {
+        let slice = SpringSumsSlice {
+            owned_vecs: self.owned_vecs,
+            start: self.start + n,
+            end: self.end,
+        };
+        //println!(
+        //    "slice_right: ({} {}) -{}-> ({} {})",
+        //    self.start, self.end, n, slice.start, slice.end
+        //);
+        assert!(slice.start <= slice.end);
+        slice
+    }
+
+    //fn count(&self, i: usize, j: usize) -> (usize, usize, usize) {
+    //    (
+    //        self.n_operational[i] - self.n_operational[j],
+    //        self.n_damaged[i] - self.n_damaged[j],
+    //        self.n_unknown[i] - self.n_unknown[j],
+    //    )
+    //}
+}
+
+fn count_arrangements(
+    row: &str,
+    damaged_springs: DamagedSprings,
+    spring_sums: &SpringSumsSlice,
+) -> usize {
+    //println!("row: {}", row);
+    //println!("     {}", (0..row.len()).map(|i| i % 10).join(""));
+    //println!(
+    //    "len: {} start: {} end: {} spring_len: {}",
+    //    row.len(),
+    //    spring_sums.start,
+    //    spring_sums.end,
+    //    spring_sums.len()
+    //);
+
+    // The SprintSumsSlice should have length 1+ the row length
+    assert_eq!(row.len() + 1, spring_sums.end - spring_sums.start);
+
     if damaged_springs.is_empty() {
+        // TODO: Counting . and ?
         return row.chars().all(|c| c != '#') as usize;
     } else if row.chars().filter(|&c| c != '.').count() < damaged_springs.iter().sum() {
+        // TODO: Counting # and ?
         return 0;
     }
 
@@ -76,6 +210,7 @@ fn count_arrangements(row: &str, damaged_springs: DamagedSprings) -> usize {
 
     // The pot_damaged vector is an acceleration structure
     // that prevents us from scanning the entire row of damaged springs
+    // TODO: Counting .
     let pot_damaged: Vec<usize> = iter::once(0)
         .chain(row.chars().rev().scan(0, |acc, c| {
             *acc += (c == '.').then_some(0).unwrap_or(1);
@@ -109,7 +244,16 @@ fn count_arrangements(row: &str, damaged_springs: DamagedSprings) -> usize {
 
         // Count the number of arrangements on the left
         let left_row = &row[..i];
-        let left_arrangements = count_arrangements(left_row, left_damaged_springs.to_vec());
+        let left_slice = spring_sums.slice_left(i + 1);
+        //println!(
+        //    "i: {} left_row: {} left_slice: ({}, {})",
+        //    i,
+        //    left_row.len(),
+        //    left_slice.start,
+        //    left_slice.end
+        //);
+        let left_arrangements =
+            count_arrangements(left_row, left_damaged_springs.to_vec(), &left_slice);
 
         // Early return if no arrangements are possible on the left
         if left_arrangements == 0 {
@@ -118,7 +262,16 @@ fn count_arrangements(row: &str, damaged_springs: DamagedSprings) -> usize {
 
         // Count the number of arrangements on the right
         let right_row = &row[(i + split_str_len)..];
-        let right_arrangements = count_arrangements(right_row, right_damaged_springs.to_vec());
+        let right_slice = spring_sums.slice_right(i + split_str_len);
+        //println!(
+        //    "i: {} right_row: {} right_slice: ({}, {})",
+        //    i,
+        //    right_row.len(),
+        //    right_slice.start,
+        //    right_slice.end
+        //);
+        let right_arrangements =
+            count_arrangements(right_row, right_damaged_springs.to_vec(), &right_slice);
 
         // This is te key to the combinatoral speedup
         total_arrangements += left_arrangements * right_arrangements
