@@ -148,21 +148,22 @@ fn count_arrangements(
     let right_empty = right_damaged_springs.is_empty();
 
     // Scan the row for possible splits
+    // [..., '.', '#', '#', '#', '#', '#', '.', ...]
+    //        i1   i2                       i3  i4
     let mut total_arrangements: usize = 0;
     for i1 in 0.. {
         let i2 = if left_empty { i1 } else { i1 + 1 };
         let i3 = i2 + split_spring;
         let i4 = if right_empty { i3 } else { i3 + 1 };
-        let i5 = row.len();
 
         // There are no more possible splits
-        if i4 > i5 {
+        if i4 > row.len() {
             break;
         }
 
         // Ensure the right split has sufficiently many potential damaged springs.
         // Since right_pot_damaged is decreasing, we can break early.
-        let right_slice = spring_sums.slice(i4, i5 + 1);
+        let right_slice = spring_sums.slice(i4, row.len() + 1);
         if right_slice.n_not_operational() < right_damaged_springs.iter().sum() {
             break;
         }
