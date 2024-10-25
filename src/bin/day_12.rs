@@ -64,9 +64,11 @@ fn solve(puzzle: &[(Row, DamagedSprings)]) -> usize {
 }
 
 struct SpringSums {
-    n_operational: Vec<usize>, // Running sum of '.' (from the right)
-    n_damaged: Vec<usize>,     // Running sum of '#' (from the right)
-    n_unknown: Vec<usize>,     // Running sum of '?' (from the right)
+    num_not_operational: Vec<usize>, // Running sum of '.' (from the right)
+    num_not_damaged: Vec<usize>,     // Running sum of '.' (from the right)
+                                     //n_operational: Vec<usize>,       // Running sum of '.' (from the right)
+                                     //n_damaged: Vec<usize>,           // Running sum of '#' (from the right)
+                                     //n_unknown: Vec<usize>,           // Running sum of '?' (from the right)
 }
 
 // This is an acceleration data structure which lets met quickly count the number of
@@ -80,33 +82,43 @@ struct SpringSumsSlice<'a> {
 }
 impl SpringSums {
     fn new(row: &str) -> Self {
-        // TODO: I can maybe make this more elegantly by doing a reverse loop
-        // with a match statement over the characater.
-        let n_operational: Vec<usize> = iter::once(0)
-            .chain(row.chars().rev().scan(0, |acc, c| {
-                *acc += (c == '.').then_some(0).unwrap_or(1);
-                Some(*acc)
-            }))
-            .collect();
+        let mut num_not_operational: Vec<usize> = vec![0; row.len() + 1];
+        let mut num_not_damaged: Vec<usize> = vec![0; row.len() + 1];
+        for (i, c) in row.chars().rev().enumerate() {
+            let i = row.len() - i;
+            num_not_operational[i - 1] = num_not_operational[i] + (c != '.') as usize;
+            num_not_damaged[i - 1] = num_not_damaged[i] + (c != '#') as usize;
+        }
 
-        let n_damaged: Vec<usize> = iter::once(0)
-            .chain(row.chars().rev().scan(0, |acc, c| {
-                *acc += (c == '#').then_some(0).unwrap_or(1);
-                Some(*acc)
-            }))
-            .collect();
-
-        let n_unknown: Vec<usize> = iter::once(0)
-            .chain(row.chars().rev().scan(0, |acc, c| {
-                *acc += (c == '?').then_some(0).unwrap_or(1);
-                Some(*acc)
-            }))
-            .collect();
+        //// TODO: I can maybe make this more elegantly by doing a reverse loop
+        //// with a match statement over the characater.
+        //let n_operational: Vec<usize> = iter::once(0)
+        //    .chain(row.chars().rev().scan(0, |acc, c| {
+        //        *acc += (c == '.').then_some(1).unwrap_or(0);
+        //        Some(*acc)
+        //    }))
+        //    .collect();
+        //
+        //let n_damaged: Vec<usize> = iter::once(0)
+        //    .chain(row.chars().rev().scan(0, |acc, c| {
+        //        *acc += (c == '#').then_some(1).unwrap_or(0);
+        //        Some(*acc)
+        //    }))
+        //    .collect();
+        //
+        //let n_unknown: Vec<usize> = iter::once(0)
+        //    .chain(row.chars().rev().scan(0, |acc, c| {
+        //        *acc += (c == '?').then_some(1).unwrap_or(0);
+        //        Some(*acc)
+        //    }))
+        //    .collect();
 
         SpringSums {
-            n_operational: n_operational.into_iter().rev().collect(),
-            n_damaged: n_damaged.into_iter().rev().collect(),
-            n_unknown: n_unknown.into_iter().rev().collect(),
+            num_not_operational,
+            num_not_damaged,
+            //n_operational: n_operational.into_iter().rev().collect(),
+            //n_damaged: n_damaged.into_iter().rev().collect(),
+            //n_unknown: n_unknown.into_iter().rev().collect(),
         }
     }
 }
@@ -115,9 +127,9 @@ impl SpringSums {
 impl<'a> SpringSumsSlice<'a> {
     fn new(owned_vecs: &'a SpringSums) -> Self {
         // There is a single length
-        let len = owned_vecs.n_operational.len();
-        assert_eq!(owned_vecs.n_damaged.len(), len);
-        assert_eq!(owned_vecs.n_unknown.len(), len);
+        let len = owned_vecs.num_not_operational.len();
+        assert_eq!(owned_vecs.num_not_damaged.len(), len);
+        //assert_eq!(owned_vecs.n_unknown.len(), len);
 
         SpringSumsSlice {
             owned_vecs,
@@ -129,6 +141,17 @@ impl<'a> SpringSumsSlice<'a> {
     fn len(&self) -> usize {
         assert!(self.end >= self.start);
         self.end - self.start
+    }
+
+    fn slice(&self, start: usize, end: usize) -> Self {
+        assert!(start <= end);
+        assert!(end <= self.owned_vecs.num_not_operational.len());
+
+        SpringSumsSlice {
+            owned_vecs: self.owned_vecs,
+            start: self.start + start,
+            end: self.start + end,
+        }
     }
 
     fn slice_left(&self, n: usize) -> Self {
@@ -157,6 +180,39 @@ impl<'a> SpringSumsSlice<'a> {
         //);
         assert!(slice.start <= slice.end);
         slice
+    }
+
+    fn slice_center(&self, start: usize, end: usize) -> Self {
+        let slice = SpringSumsSlice {
+            owned_vecs: self.owned_vecs,
+            start: self.start + start,
+            end: self.start + end,
+        };
+        assert!(slice.start <= slice.end);
+        slice
+    }
+
+    fn n_not_damaged(&self) -> usize {
+        //let n_operational =
+        //    self.owned_vecs.n_operational[self.start] - self.owned_vecs.n_operational[self.end - 1];
+        //let n_unknown =
+        //    self.owned_vecs.n_unknown[self.start] - self.owned_vecs.n_unknown[self.end - 1];
+        //let answer = n_operational + n_unknown;
+        //assert_eq!(
+        //    answer,
+        self.owned_vecs.num_not_damaged[self.start] - self.owned_vecs.num_not_damaged[self.end - 1]
+        //);
+        //answer
+    }
+
+    fn n_not_operational(&self) -> usize {
+        //let n_damaged =
+        //    self.owned_vecs.n_damaged[self.start] - self.owned_vecs.n_damaged[self.end - 1];
+        //let n_unknown =
+        //    self.owned_vecs.n_unknown[self.start] - self.owned_vecs.n_unknown[self.end - 1];
+        //n_damaged + n_unknown
+        self.owned_vecs.num_not_operational[self.start]
+            - self.owned_vecs.num_not_operational[self.end - 1]
     }
 
     //fn count(&self, i: usize, j: usize) -> (usize, usize, usize) {
@@ -188,10 +244,48 @@ fn count_arrangements(
 
     if damaged_springs.is_empty() {
         // TODO: Counting . and ?
-        return row.chars().all(|c| c != '#') as usize;
-    } else if row.chars().filter(|&c| c != '.').count() < damaged_springs.iter().sum() {
-        // TODO: Counting # and ?
-        return 0;
+        //let old_way = row.chars().all(|c| c != '#');
+        let new_way = spring_sums.n_not_damaged() == row.len();
+        //assert_eq!(old_way, new_way);
+        //let status = match old_way == new_way {
+        //    true => "It worked",
+        //    false => "PROBLEM",
+        //};
+        //println!(
+        //    "old_way: {} new_way: {} status: {}",
+        //    old_way, new_way, status
+        //);
+        //return row.chars().all(|c| c != '#') as usize;
+        return new_way as usize;
+    } else {
+        //let old_way = row.chars().filter(|&c| c != '.').count();
+        let new_way = spring_sums.n_not_operational();
+        //if old_way != new_way {
+        //    println!("row: {}", row);
+        //    println!("     {}", (0..row.len()).map(|i| i % 10).join(""));
+        //    println!("start: {} end: {}", spring_sums.start, spring_sums.end);
+        //    println!("old_way: {}", old_way);
+        //    println!("new_way: {}", new_way);
+        //    println!(
+        //        "n_damaged: {:?} ({})",
+        //        &spring_sums.owned_vecs.n_damaged[spring_sums.start..spring_sums.end],
+        //        spring_sums.len()
+        //    );
+        //    println!(
+        //        "n_unknown: {:?} ({})",
+        //        &spring_sums.owned_vecs.n_unknown[spring_sums.start..spring_sums.end],
+        //        spring_sums.len()
+        //    );
+        //}
+        //assert_eq!(old_way, new_way);
+        //if old_way < damaged_springs.iter().sum() {
+        //    // TODO: Counting # and ?
+        //    return 0;
+        //}
+        if new_way < damaged_springs.iter().sum() {
+            // TODO: Counting # and ?
+            return 0;
+        }
     }
 
     // Split the damaged_springs into three parts damaged_springs[..,split,..]
@@ -206,49 +300,88 @@ fn count_arrangements(
     let split_spring = damaged_springs[split];
     let left_empty = left_damaged_springs.is_empty();
     let right_empty = right_damaged_springs.is_empty();
-    let split_str_len = split_spring + (!left_empty as usize) + (!right_empty as usize);
+    //let split_str_len = split_spring + (!left_empty as usize) + (!right_empty as usize);
 
-    // The pot_damaged vector is an acceleration structure
-    // that prevents us from scanning the entire row of damaged springs
-    // TODO: Counting .
-    let pot_damaged: Vec<usize> = iter::once(0)
-        .chain(row.chars().rev().scan(0, |acc, c| {
-            *acc += (c == '.').then_some(0).unwrap_or(1);
-            Some(*acc)
-        }))
-        .collect();
-    let pot_damaged: Vec<usize> = pot_damaged.into_iter().rev().collect();
+    //// The pot_damaged vector is an acceleration structure
+    //// that prevents us from scanning the entire row of damaged springs
+    //// TODO: Counting .
+    //let pot_damaged: Vec<usize> = iter::once(0)
+    //    .chain(row.chars().rev().scan(0, |acc, c| {
+    //        *acc += (c != '.').then_some(1).unwrap_or(0);
+    //        Some(*acc)
+    //    }))
+    //    .collect();
+    //let pot_damaged: Vec<usize> = pot_damaged.into_iter().rev().collect();
 
     // Scan the row for possible splits
     let mut total_arrangements: usize = 0;
-    for i in 0..=(row.len() - split_str_len) {
-        // Ensure the right split has sufficiently many potential damaged springs.
-        // Since right_pot_damaged is decreasing, we can break early.
-        if pot_damaged[i + split_str_len] < right_damaged_springs.iter().sum() {
+    for i in 0.. {
+        let i1 = i;
+        let i2 = if left_empty { i1 } else { i1 + 1 };
+        let i3 = i2 + split_spring;
+        let i4 = if right_empty { i3 } else { i3 + 1 };
+
+        #[allow(unused_variables)]
+        let i5 = row.len();
+        if i4 > i5 {
             break;
         }
 
+        // Ensure the right split has sufficiently many potential damaged springs.
+        // Since right_pot_damaged is decreasing, we can break early.
+        //assert_eq!(i4, i + split_str_len);
+        //let right_slice = spring_sums.slice_right(i + split_str_len);
+        let right_slice = spring_sums.slice(i4, i5 + 1);
+        //assert_eq!(
+        //    pot_damaged[i + split_str_len],
+        //    right_slice.n_not_operational()
+        //);
+        if right_slice.n_not_operational() < right_damaged_springs.iter().sum() {
+            break;
+        }
+
+        // TODO: Create a guard on the left slice
+        let left_slice = spring_sums.slice_left(i + 1);
+
         // Ensure the center split has suffciently many potential damaged springs
-        if pot_damaged[i] - pot_damaged[i + split_str_len] < split_spring {
+        //let center_slice = spring_sums.slice_center(i, i + split_str_len + 1);
+        let center_slice = spring_sums.slice(i1, i4 + 1);
+        //assert_eq!(
+        //    pot_damaged[i] - pot_damaged[i + split_str_len],
+        //    center_slice.n_not_operational()
+        //);
+
+        if center_slice.n_not_operational() < split_spring {
             continue;
         }
 
         // Ensure that the center split is exctly valid
-        let mut center_row = row.chars().skip(i);
-        if !left_empty && center_row.next() == Some('#')
-            || center_row.by_ref().take(split_spring).any(|c| c == '.')
-            || !right_empty && center_row.next() == Some('#')
-        {
+        //let mut center_row = row.chars().skip(i);
+
+        #[allow(unused_variables)]
+        //let old_a = !left_empty && center_row.next() == Some('#');
+        let new_a = !left_empty && row.get(i1..i2) == Some("#");
+        //assert_eq!(old_a, new_a);
+        //let old_b = center_row.by_ref().take(split_spring).any(|c| c == '.');
+        // TODO: Implement new_b.. this is complicated!
+        //let new_b = center_slice().n_not
+        let new_b = spring_sums.slice(i2, i3 + 1).n_not_operational() != (i3 - i2);
+        let new_c = !right_empty && row.get(i3..i4) == Some("#");
+        //assert_eq!(old_b, new_b);
+        //let new_c =
+        //    !right_empty && row.get((i + split_str_len - 1)..(i + split_str_len)) == Some("#");
+        //assert_eq!(old_c, new_c);
+        let old_way = new_a || new_b || new_c;
+        if old_way {
             continue;
         }
 
         // Count the number of arrangements on the left
         let left_row = &row[..i];
-        let left_slice = spring_sums.slice_left(i + 1);
         //println!(
         //    "i: {} left_row: {} left_slice: ({}, {})",
         //    i,
-        //    left_row.len(),
+        //    left_row.len()old_old_old_ccc,
         //    left_slice.start,
         //    left_slice.end
         //);
@@ -261,8 +394,7 @@ fn count_arrangements(
         }
 
         // Count the number of arrangements on the right
-        let right_row = &row[(i + split_str_len)..];
-        let right_slice = spring_sums.slice_right(i + split_str_len);
+        let right_row = &row[i4..];
         //println!(
         //    "i: {} right_row: {} right_slice: ({}, {})",
         //    i,
