@@ -168,7 +168,6 @@ fn count_arrangements(
         }
 
         // Ensure the center split has suffciently many potential damaged springs
-        // let center_slice = spring_sums.slice_center(i, i + split_str_len + 1);
         if spring_sums.slice(i1, i4 + 1).n_not_operational() < split_spring {
             continue;
         }
