@@ -1,12 +1,6 @@
 use itertools::Itertools;
 use std::iter;
 
-/// A row of springs, eiher '.' (operational), '#' (damaged), or '?' (unknown)
-type Row = String;
-
-/// A list of contiguous damaged springs in a row
-type DamagedSprings = Vec<usize>;
-
 /// I discovered two solutions to this problem:
 ///
 /// 1. A dynamic programming approach, where you scan from the left
@@ -54,29 +48,25 @@ fn main() {
     println!("Equal: {}\n", sol_12b == correct_sol_12b);
 }
 
-fn solve(puzzle: &[(Row, DamagedSprings)]) -> usize {
+fn solve(puzzle: &[(String, Vec<usize>)]) -> usize {
     puzzle
         .iter()
         .map(|(row, damaged_springs)| {
             let spring_sums = SpringSums::new(row);
-            count_arrangements(
-                row,
-                damaged_springs.clone(),
-                &SpringSumsSlice::new(&spring_sums),
-            )
+            count_arrangements(row, damaged_springs, &SpringSumsSlice::new(&spring_sums))
         })
         .sum()
 }
 
+/// This is an acceleration data structure which lets met quickly count the number of
+/// ?s .? and #? in a row of springs. It stores running sums starting from the right of the
+/// row.
 struct SpringSums {
     num_not_operational: Vec<usize>, // Running sum of != '.' (from the right)
     num_not_damaged: Vec<usize>,     // Running sum of != '#' (from the right)
 }
 
-// This is an acceleration data structure which lets met quickly count the number of
-// ?s .? and #? in a row of springs. It stores running sums starting from the right of the
-// row.
-#[allow(dead_code)]
+/// This is a slice of the SpringSums data structure.
 struct SpringSumsSlice<'a> {
     owned_vecs: &'a SpringSums,
     start: usize,
@@ -135,7 +125,7 @@ impl<'a> SpringSumsSlice<'a> {
 
 fn count_arrangements(
     row: &str,
-    damaged_springs: DamagedSprings,
+    damaged_springs: &[usize],
     spring_sums: &SpringSumsSlice,
 ) -> usize {
     // The SprintSumsSlice should have length 1+ the row length
@@ -162,8 +152,7 @@ fn count_arrangements(
 
     // Scan the row for possible splits
     let mut total_arrangements: usize = 0;
-    for i in 0.. {
-        let i1 = i;
+    for i1 in 0.. {
         let i2 = if left_empty { i1 } else { i1 + 1 };
         let i3 = i2 + split_spring;
         let i4 = if right_empty { i3 } else { i3 + 1 };
@@ -202,9 +191,8 @@ fn count_arrangements(
         }
 
         // Count the number of arrangements on the left
-        let left_row = &row[..i];
-        let left_arrangements =
-            count_arrangements(left_row, left_damaged_springs.to_vec(), &left_slice);
+        let left_row = &row[..i1];
+        let left_arrangements = count_arrangements(left_row, left_damaged_springs, &left_slice);
 
         // Early return if no arrangements are possible on the left
         if left_arrangements == 0 {
@@ -213,8 +201,7 @@ fn count_arrangements(
 
         // Count the number of arrangements on the right
         let right_row = &row[i4..];
-        let right_arrangements =
-            count_arrangements(right_row, right_damaged_springs.to_vec(), &right_slice);
+        let right_arrangements = count_arrangements(right_row, right_damaged_springs, &right_slice);
 
         // This is te key to the combinatoral speedup
         total_arrangements += left_arrangements * right_arrangements
@@ -222,7 +209,7 @@ fn count_arrangements(
     total_arrangements
 }
 
-fn parse_input(input: &'static str) -> Vec<(Row, DamagedSprings)> {
+fn parse_input(input: &'static str) -> Vec<(String, Vec<usize>)> {
     input
         .lines()
         .map(|line| {
@@ -235,7 +222,7 @@ fn parse_input(input: &'static str) -> Vec<(Row, DamagedSprings)> {
         .collect()
 }
 
-fn increase_puzzle_size(puzzle: Vec<(Row, DamagedSprings)>) -> Vec<(Row, DamagedSprings)> {
+fn increase_puzzle_size(puzzle: Vec<(String, Vec<usize>)>) -> Vec<(String, Vec<usize>)> {
     puzzle
         .into_iter()
         .map(|(row, damaged_springs)| {
