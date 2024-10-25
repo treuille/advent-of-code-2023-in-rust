@@ -24,7 +24,7 @@ use std::iter;
 /// 2. Uses a runing sum acceleration data structure to quickly cut off
 ///    some branches of the search if the split are impossible.
 /// 3. No allocations during the search.
-/// 4. Solves the problem in ~2s (without memization) due to (1)-(3).
+/// 4. Solves the problem in <1.5s (without memization) due to (1)-(3).
 fn main() {
     // Parse the input, counting the number of matches per card
     let input = include_str!("../../puzzle_inputs/day_12.txt");
