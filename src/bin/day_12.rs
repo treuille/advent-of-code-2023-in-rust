@@ -58,17 +58,15 @@ fn solve(puzzle: &[(String, Vec<usize>)]) -> usize {
         .sum()
 }
 
-/// This is an acceleration data structure which lets met quickly count the number of
-/// ?s .? and #? in a row of springs. It stores running sums starting from the right of the
-/// row.
+/// Acceleration data structure
 struct SpringSums {
-    num_not_operational: Vec<usize>, // Running sum of != '.' (from the right)
-    num_not_damaged: Vec<usize>,     // Running sum of != '#' (from the right)
+    not_operational: Vec<usize>, // Running sum of != '.' (from the right)
+    not_damaged: Vec<usize>,     // Running sum of != '#' (from the right)
 }
 
-/// This is a slice of the SpringSums data structure.
+/// This is a slice into a `SpringSums`
 struct SpringSumsSlice<'a> {
-    owned_vecs: &'a SpringSums,
+    sums: &'a SpringSums,
     start: usize,
     end: usize,
 }
@@ -76,14 +74,14 @@ struct SpringSumsSlice<'a> {
 impl SpringSums {
     fn new(row: &str) -> Self {
         let mut sums = SpringSums {
-            num_not_operational: vec![0; row.len() + 1],
-            num_not_damaged: vec![0; row.len() + 1],
+            not_operational: vec![0; row.len() + 1],
+            not_damaged: vec![0; row.len() + 1],
         };
 
         for (i, c) in row.chars().rev().enumerate() {
             let i = row.len() - i;
-            sums.num_not_operational[i - 1] = sums.num_not_operational[i] + (c != '.') as usize;
-            sums.num_not_damaged[i - 1] = sums.num_not_damaged[i] + (c != '#') as usize;
+            sums.not_operational[i - 1] = sums.not_operational[i] + (c != '.') as usize;
+            sums.not_damaged[i - 1] = sums.not_damaged[i] + (c != '#') as usize;
         }
 
         sums
@@ -92,11 +90,11 @@ impl SpringSums {
 
 impl<'a> SpringSumsSlice<'a> {
     fn new(owned_vecs: &'a SpringSums) -> Self {
-        let len = owned_vecs.num_not_operational.len();
-        assert_eq!(owned_vecs.num_not_damaged.len(), len);
+        let len = owned_vecs.not_operational.len();
+        assert_eq!(owned_vecs.not_damaged.len(), len);
 
         SpringSumsSlice {
-            owned_vecs,
+            sums: owned_vecs,
             start: 0,
             end: len,
         }
@@ -104,22 +102,21 @@ impl<'a> SpringSumsSlice<'a> {
 
     fn slice(&self, start: usize, end: usize) -> Self {
         assert!(start <= end);
-        assert!(end <= self.owned_vecs.num_not_operational.len());
+        assert!(end <= self.sums.not_operational.len());
 
         SpringSumsSlice {
-            owned_vecs: self.owned_vecs,
+            sums: self.sums,
             start: self.start + start,
             end: self.start + end,
         }
     }
 
     fn n_not_damaged(&self) -> usize {
-        self.owned_vecs.num_not_damaged[self.start] - self.owned_vecs.num_not_damaged[self.end - 1]
+        self.sums.not_damaged[self.start] - self.sums.not_damaged[self.end - 1]
     }
 
     fn n_not_operational(&self) -> usize {
-        self.owned_vecs.num_not_operational[self.start]
-            - self.owned_vecs.num_not_operational[self.end - 1]
+        self.sums.not_operational[self.start] - self.sums.not_operational[self.end - 1]
     }
 }
 
