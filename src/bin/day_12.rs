@@ -1,4 +1,3 @@
-#![allow(clippy::obfuscated_if_else)]
 use itertools::Itertools;
 use std::iter;
 
