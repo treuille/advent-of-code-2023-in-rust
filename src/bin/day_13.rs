@@ -36,7 +36,6 @@ fn main() {
     println!("Equal: {}\n", sol_13b == correct_sol_13b);
 }
 
-#[allow(unused_variables)]
 fn solve(input: &[Array2<bool>], valid_reflection: fn(DisgreementIter) -> bool) -> usize {
     input
         .iter()
@@ -74,7 +73,7 @@ fn valid_reflection_13a(disagreements: DisgreementIter) -> bool {
     true
 }
 
-fn valid_reflection_13b(disagreements: &mut dyn Iterator<Item = usize>) -> bool {
+fn valid_reflection_13b(disagreements: DisgreementIter) -> bool {
     let mut found_smudge: bool = false;
     for disagreement in disagreements {
         match (disagreement, found_smudge) {
