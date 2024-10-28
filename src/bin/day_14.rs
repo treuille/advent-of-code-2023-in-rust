@@ -77,7 +77,6 @@ fn tilt(mut grid: Array2<char>, dir: Direction) -> Array2<char> {
             Direction::South | Direction::East => col.slice_mut(s![..;-1]),
         };
         let (mut idx_to, mut idx_from) = (0, 1);
-        //let mut idx_from = 1;
         while idx_from < col.len() && idx_to < col.len() {
             if idx_to >= idx_from {
                 idx_from = idx_to + 1;
