@@ -2,7 +2,6 @@ use advent_of_code_2023_in_rust::grid::parse_char_grid;
 use ndarray::{s, Array2};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy)]
 enum Direction {
     North,
     South,
@@ -37,21 +36,34 @@ fn solve_14a(grid: Array2<char>) -> usize {
 }
 
 fn solve_14b(mut grid: Array2<char>) -> usize {
+    // Find a cycle in the grid transitions
     let mut found_grids: HashMap<Array2<_>, usize> = HashMap::from([(grid.clone(), 0)]);
-
-    let cycle_index = {
+    let cycle_idx = {
         let mut i = 1;
         loop {
             grid = cycle(grid);
-            if let Some(cycle_index) = found_grids.get(&grid) {
-                break *cycle_index;
+            if let Some(cycle_idx) = found_grids.get(&grid) {
+                break *cycle_idx;
             }
             found_grids.insert(grid.clone(), i);
             i += 1;
         }
     };
-    let the_nth = 1000000000;
-    score(nth(the_nth, &found_grids, cycle_index))
+
+    // Now find the 1000000000th grid
+    let nth: usize = 1000000000;
+    let idx = nth
+        .checked_sub(cycle_idx)
+        .map(|n| {
+            let cycle_len = found_grids.len() - cycle_idx;
+            let n = n % cycle_len;
+            cycle_idx + n
+        })
+        .unwrap_or(nth);
+    let grid = found_grids.iter().find(|(_, &i)| i == idx).unwrap().0;
+
+    // Score the state
+    score(grid)
 }
 
 fn tilt(mut grid: Array2<char>, dir: Direction) -> Array2<char> {
@@ -64,74 +76,23 @@ fn tilt(mut grid: Array2<char>, dir: Direction) -> Array2<char> {
             Direction::North | Direction::West => col.slice_mut(s![..;1]),
             Direction::South | Direction::East => col.slice_mut(s![..;-1]),
         };
-        //println!("col BEF: {}", col.iter().collect::<String>());
-        let mut idx_to = 0;
-        let mut idx_from = 1;
-        loop {
-            //println!("col ---: {}", col.iter().collect::<String>());
-            //println!(
-            //    "       : {}",
-            //    (0..col.len())
-            //        .map(|i| {
-            //            if idx_from == i {
-            //                if idx_to == i {
-            //                    '*'
-            //                } else {
-            //                    'f'
-            //                }
-            //            } else if idx_to == i {
-            //                't'
-            //            } else {
-            //                ' '
-            //            }
-            //        })
-            //        .collect::<String>()
-            //);
-            //println!();
-            match (idx_from, idx_to, col.get(idx_from), col.get(idx_to)) {
-                // Break if idx_from is out of bounds
-                (idx_from, _, _, _) if (idx_from >= col.len()) => break,
-
-                // Break if idx_to is out of bounds
-                (_, idx_to, _, _) if (idx_to >= col.len()) => break,
-
-                // Increment idx_to if it points to a rock
-                (_, _, _, Some('O')) | (_, _, _, Some('#')) => idx_to += 1,
-
-                // Ensure that idx_to is less than idx_from
-                (_, _, _, _) if (idx_to >= idx_from) => idx_from = idx_to + 1,
-
-                // Shift the rock to the north if possible
-                (_, _, Some('O'), Some('.')) => col.swap(idx_from, idx_to),
-
-                (_, _, Some('#'), _) => {
-                    idx_to = idx_from + 1;
-                    idx_from = idx_to + 1;
+        let (mut idx_to, mut idx_from) = (0, 1);
+        //let mut idx_from = 1;
+        while idx_from < col.len() && idx_to < col.len() {
+            if idx_to >= idx_from {
+                idx_from = idx_to + 1;
+            } else {
+                match (col[idx_from], col[idx_to]) {
+                    (_, 'O') | (_, '#') => idx_to += 1,
+                    ('O', '.') => col.swap(idx_from, idx_to),
+                    ('#', _) => (idx_to, idx_from) = (idx_from + 1, idx_from + 2),
+                    (_, '.') => idx_from += 1,
+                    (_, _) => unreachable!(),
                 }
-                (_, _, _, Some('.')) => idx_from += 1,
-
-                (idx_from, idx_to, elt_from, elt_to) => unreachable!(
-                    "impossible: ({}, {}, {:?}, {:?})",
-                    idx_from, idx_to, elt_from, elt_to
-                ),
             }
         }
-        //println!("col AFT: {}", col.iter().collect::<String>());
-        //println!();
     }
     grid
-}
-
-fn nth(n: usize, found_grids: &HashMap<Array2<char>, usize>, cycle_idx: usize) -> &Array2<char> {
-    let idx = n
-        .checked_sub(cycle_idx)
-        .map(|n| {
-            let cycle_len = found_grids.len() - cycle_idx;
-            let n = n % cycle_len;
-            cycle_idx + n
-        })
-        .unwrap_or(n);
-    found_grids.iter().find(|(_, &i)| i == idx).unwrap().0
 }
 
 #[allow(clippy::let_and_return)]
