@@ -47,34 +47,97 @@ impl Ray {
 
 fn main() {
     //// Parse the input, counting the number of matches per card
-    //    let input = r#"
-    //.|...\....
-    //|.-.\.....
-    //.....|-...
-    //........|.
-    //..........
-    //.........\
-    //..../.\\..
-    //.-.-/..|..
-    //.|....-|.\
-    //..//.|...."#
-    //        .trim();
+    let _input = r#"
+.|...\....
+|.-.\.....
+.....|-...
+........|.
+..........
+.........\
+..../.\\..
+.-.-/..|..
+.|....-|.\
+..//.|...."#
+        .trim();
 
     let input = include_str!("../../puzzle_inputs/day_16.txt").trim();
 
-    let mut grid = parse_char_grid(input, |c| Cell {
-        cell_type: c,
-        visited: [false; 4],
-    });
+    let grid = parse_char_grid(input, |c| c);
+
+    // Solve 16a
+    let answer = simulate_beam(
+        &grid,
+        Ray {
+            loc: (0, 0),
+            direction: Direction::Right,
+        },
+    );
+    println!("Answer: {}", answer);
     //print_grid(&grid, false);
     //println!();
 
-    let mut rays: Vec<Ray> = vec![Ray {
-        loc: (0, 0),
-        direction: Direction::Right,
-    }];
+    // Solve 16b
+    let (w, h) = grid.dim();
+    let edges_0 = (0..w).map(|i| {
+        [
+            Ray {
+                loc: (i, 0),
+                direction: Direction::Right,
+            },
+            Ray {
+                loc: (i, h - 1),
+                direction: Direction::Left,
+            },
+        ]
+    });
+    let edges_1 = (0..h).map(|j| {
+        [
+            Ray {
+                loc: (0, j),
+                direction: Direction::Up,
+            },
+            Ray {
+                loc: (w - 1, j),
+                direction: Direction::Down,
+            },
+        ]
+    });
+    let answer: usize = edges_0
+        .chain(edges_1)
+        .flatten()
+        .map(|ray| simulate_beam(&grid, ray))
+        .max()
+        .unwrap();
 
-    #[allow(clippy::never_loop)]
+    println!("Answer: {}", answer);
+
+    //let input = include_str!("../../puzzle_inputs/day_08_test.txt");
+
+    //// Solve 16a
+    //let sol_16a: usize = 7517;
+    //let correct_sol_16a: usize = 32;
+    //println!("* 16a *");
+    //println!("My solution: {sol_16a}");
+    //println!("Correct solution: {correct_sol_16a}");
+    //println!("Equal: {}\n", sol_16a == correct_sol_16a);
+    //
+    //// Solve 16b
+    //let sol_16b: usize = 56;
+    //let correct_sol_16b: usize = 7741;
+    //println!("* 16b *");
+    //println!("My solution: {sol_16b}");
+    //println!("Correct solution: {correct_sol_16b}");
+    //println!("Equal: {}\n", sol_16b == correct_sol_16b);
+}
+
+fn simulate_beam(grid: &Array2<char>, start: Ray) -> usize {
+    let mut grid = grid.map(|&c| Cell {
+        cell_type: c,
+        visited: [false; 4],
+    });
+
+    let mut rays: Vec<Ray> = vec![start];
+
     while let Some(ray) = rays.pop() {
         //println!("Ray: {:?}\n", ray);
         //println!("contains: {}\n", contains_ray(&grid, &ray));
@@ -126,28 +189,9 @@ fn main() {
     }
 
     //print_grid(&grid, true);
-    let answer = grid
-        .iter()
+    grid.iter()
         .filter(|cell| cell.visited.iter().any(|&x| x))
-        .count();
-    println!("answer: {}", answer);
-    //let input = include_str!("../../puzzle_inputs/day_08_test.txt");
-
-    //// Solve 16a
-    //let sol_16a: usize = 12;
-    //let correct_sol_16a: usize = 32;
-    //println!("* 16a *");
-    //println!("My solution: {sol_16a}");
-    //println!("Correct solution: {correct_sol_16a}");
-    //println!("Equal: {}\n", sol_16a == correct_sol_16a);
-    //
-    //// Solve 16b
-    //let sol_16b: usize = 56;
-    //let correct_sol_16b: usize = 79;
-    //println!("* 16b *");
-    //println!("My solution: {sol_16b}");
-    //println!("Correct solution: {correct_sol_16b}");
-    //println!("Equal: {}\n", sol_16b == correct_sol_16b);
+        .count()
 }
 
 fn print_grid(grid: &Array2<Cell>, hide_contraptions: bool) {
