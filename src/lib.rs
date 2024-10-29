@@ -262,6 +262,8 @@ pub mod parse_regex {
     }
 }
 
+pub mod graph;
+
 #[cfg(test)]
 mod tests {
     use super::grid::{neighbors, parse_char_grid};

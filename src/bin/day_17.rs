@@ -1,14 +1,22 @@
+use advent_of_code_2023_in_rust::graph;
+use advent_of_code_2023_in_rust::graph::Node;
+
 fn main() {
     //// Parse the input, counting the number of matches per card
     //let input = include_str!("../../puzzle_inputs/day_08_test.txt");
     //println!("input len: {}", input.len());
     //println!("input:\n{}", input);
 
-    let n = Node(2);
+    let n = MyNode(-5, -5);
     println!("n: {:?}", n);
     println!("n.weight(): {}", n.weight());
-    let neighbors: Vec<Node> = n.neighbors().collect();
+    let neighbors: Vec<MyNode> = n.neighbors().collect();
     println!("n.neighbors(): {:?}", neighbors);
+
+    println!(
+        "n.shortest_path_to(&MyNode(5)): {:?}",
+        n.shortest_path_to(&MyNode(5, 5))
+    );
 
     //let n2: Box<dyn GraphNode<Weight = usize>> = Box::new(Node {});
     //println!("n2: {:?}", n);
@@ -32,35 +40,18 @@ fn main() {
     //println!("Equal: {}\n", sol_17b == correct_sol_17b);
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Node(usize);
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+struct MyNode(i64, i64);
 
-impl GraphNode for Node {
+impl graph::Node for MyNode {
     type Weight = usize;
 
     fn weight(&self) -> Self::Weight {
-        0
+        1
     }
 
     fn neighbors(&self) -> impl Iterator<Item = Self> {
-        [Node(self.0 - 1), Node(self.0 + 1)].into_iter()
-    }
-}
-
-trait GraphNode {
-    type Weight;
-
-    fn weight(&self) -> Self::Weight;
-
-    fn neighbors(&self) -> impl Iterator<Item = Self>
-    where
-        Self: Sized;
-
-    fn shortest_path_to(&self, target: Self) -> Vec<Self>
-    where
-        Self: Sized,
-    {
-        // Default implementation for shortest_path
-        todo!()
+        (self.0 - 1..=self.0 + 1)
+            .flat_map(move |x| (self.1 - 1..=self.1 + 1).map(move |y| MyNode(x, y)))
     }
 }
