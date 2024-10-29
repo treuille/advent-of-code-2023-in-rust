@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 # Specify a default binary to run if no --bin is specified
-default-run = "day_15"
+default-run = "day_16"
 
 [dependencies]
 itertools = "0.13.0"
