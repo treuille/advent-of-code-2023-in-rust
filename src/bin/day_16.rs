@@ -1,5 +1,7 @@
 use advent_of_code_2023_in_rust::grid::parse_char_grid;
+use itertools::izip;
 use ndarray::Array2;
+use std::array;
 
 #[derive(Clone, Copy)]
 #[repr(usize)]
@@ -8,11 +10,6 @@ enum Dir {
     Down,
     Left,
     Right,
-}
-
-struct Cell {
-    cell_type: char,
-    visited: [bool; 4],
 }
 
 struct Ray {
@@ -75,39 +72,34 @@ impl Ray {
 }
 
 fn simulate_ray(grid: &Array2<char>, start: Ray) -> usize {
-    let mut grid = grid.map(|&c| Cell {
-        cell_type: c,
-        visited: [false; 4],
-    });
-
+    let mut visited: [Array2<bool>; 4] = array::from_fn(|_| Array2::from_elem(grid.dim(), false));
     let mut rays: Vec<Ray> = vec![start];
 
     while let Some(ray) = rays.pop() {
-        if grid[ray.loc].visited[ray.dir as usize] {
-            continue;
+        if !visited[ray.dir as usize][ray.loc] {
+            visited[ray.dir as usize][ray.loc] = true;
+            let split = |(i, j), d1, d2| vec![Some(Ray::new(i, j, d1)), Some(Ray::new(i, j, d2))];
+            let reflect = |(i, j), dir| vec![Ray::new(i, j, dir).advance(grid.dim())];
+            rays.extend(
+                (match (grid[ray.loc], ray.dir) {
+                    ('.', _) => vec![ray.advance(grid.dim())],
+                    ('|', Dir::Up) | ('|', Dir::Down) => vec![ray.advance(grid.dim())],
+                    ('|', Dir::Left) | ('|', Dir::Right) => split(ray.loc, Dir::Up, Dir::Down),
+                    ('-', Dir::Up) | ('-', Dir::Down) => split(ray.loc, Dir::Left, Dir::Right),
+                    ('-', Dir::Left) | ('-', Dir::Right) => vec![ray.advance(grid.dim())],
+                    ('\\', Dir::Up) | ('/', Dir::Down) => reflect(ray.loc, Dir::Right),
+                    ('\\', Dir::Down) | ('/', Dir::Up) => reflect(ray.loc, Dir::Left),
+                    ('\\', Dir::Left) | ('/', Dir::Right) => reflect(ray.loc, Dir::Down),
+                    ('\\', Dir::Right) | ('/', Dir::Left) => reflect(ray.loc, Dir::Up),
+                    (cell_type, _) => unreachable!("unexpected cell: {}", cell_type),
+                })
+                .into_iter()
+                .flatten(),
+            );
         }
-        grid[ray.loc].visited[ray.dir as usize] = true;
-        let split = |(i, j), d1, d2| vec![Some(Ray::new(i, j, d1)), Some(Ray::new(i, j, d2))];
-        let reflect = |(i, j), dir| vec![Ray::new(i, j, dir).advance(grid.dim())];
-        rays.extend(
-            (match (grid[ray.loc].cell_type, ray.dir) {
-                ('.', _) => vec![ray.advance(grid.dim())],
-                ('|', Dir::Up) | ('|', Dir::Down) => vec![ray.advance(grid.dim())],
-                ('|', Dir::Left) | ('|', Dir::Right) => split(ray.loc, Dir::Up, Dir::Down),
-                ('-', Dir::Left) | ('-', Dir::Right) => vec![ray.advance(grid.dim())],
-                ('-', Dir::Up) | ('-', Dir::Down) => split(ray.loc, Dir::Left, Dir::Right),
-                ('\\', Dir::Up) | ('/', Dir::Down) => reflect(ray.loc, Dir::Right),
-                ('\\', Dir::Down) | ('/', Dir::Up) => reflect(ray.loc, Dir::Left),
-                ('\\', Dir::Left) | ('/', Dir::Right) => reflect(ray.loc, Dir::Down),
-                ('\\', Dir::Right) | ('/', Dir::Left) => reflect(ray.loc, Dir::Up),
-                (cell_type, _) => unreachable!("unexpected cell: {}", cell_type),
-            })
-            .into_iter()
-            .flatten(),
-        );
     }
 
-    grid.iter()
-        .filter(|cell| cell.visited.iter().any(|&x| x))
+    izip!(&visited[0], &visited[1], &visited[2], &visited[3])
+        .filter(|&(&a, &b, &c, &d)| a || b || c || d)
         .count()
 }
