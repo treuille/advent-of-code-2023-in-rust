@@ -1,22 +1,27 @@
+#![allow(unused_imports)]
+
 use advent_of_code_2023_in_rust::graph;
-use advent_of_code_2023_in_rust::graph::Node;
+use advent_of_code_2023_in_rust::graph::Graph;
+use advent_of_code_2023_in_rust::grid::parse_char_grid;
+use ndarray::Array2;
 
 fn main() {
-    //// Parse the input, counting the number of matches per card
-    //let input = include_str!("../../puzzle_inputs/day_08_test.txt");
-    //println!("input len: {}", input.len());
-    //println!("input:\n{}", input);
+    // Parse the input, counting the number of matches per card
+    let input = include_str!("../../puzzle_inputs/day_17_test.txt");
+    let grid: Array2<u32> = parse_char_grid(input, |c| c.to_digit(10).unwrap());
+    println!("input len: {}", input.len());
+    println!("grid:\n{:?}", grid);
 
-    let n = MyNode(-5, -5);
-    println!("n: {:?}", n);
-    println!("n.weight(): {}", n.weight());
-    let neighbors: Vec<MyNode> = n.neighbors().collect();
-    println!("n.neighbors(): {:?}", neighbors);
-
-    println!(
-        "n.shortest_path_to(&MyNode(5)): {:?}",
-        n.shortest_path_to(&MyNode(5, 5))
-    );
+    //let n = MyNode(-5, -5);
+    //println!("n: {:?}", n);
+    //println!("n.weight(): {}", n.weight());
+    //let neighbors: Vec<MyNode> = n.neighbors().collect();
+    //println!("n.neighbors(): {:?}", neighbors);
+    //
+    //println!(
+    //    "n.shortest_path_to(&MyNode(5)): {:?}",
+    //    n.shortest_path_to(&MyNode(5, 5))
+    //);
 
     //let n2: Box<dyn GraphNode<Weight = usize>> = Box::new(Node {});
     //println!("n2: {:?}", n);
@@ -40,18 +45,17 @@ fn main() {
     //println!("Equal: {}\n", sol_17b == correct_sol_17b);
 }
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-struct MyNode(i64, i64);
-
-impl graph::Node for MyNode {
-    type Weight = usize;
-
-    fn weight(&self) -> Self::Weight {
-        1
-    }
-
-    fn neighbors(&self) -> impl Iterator<Item = Self> {
-        (self.0 - 1..=self.0 + 1)
-            .flat_map(move |x| (self.1 - 1..=self.1 + 1).map(move |y| MyNode(x, y)))
-    }
-}
+//struct GridCell(usize, usize);
+//
+//impl graph::Node for GridCell {
+//    type Weight = usize;
+//
+//    fn weight(&self) -> Self::Weight {
+//        1
+//    }
+//
+//    fn neighbors(&self) -> impl Iterator<Item = Self> {
+//        (self.0 - 1..=self.0 + 1)
+//            .flat_map(move |x| (self.1 - 1..=self.1 + 1).map(move |y| GridCell(x, y)))
+//    }
+//}
