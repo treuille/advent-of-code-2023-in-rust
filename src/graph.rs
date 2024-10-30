@@ -45,6 +45,11 @@ pub trait Graph<Node, Weight> {
             }
             dists.insert(node.clone(), (dist, parent));
             if target_fn(&node) {
+                println!(
+                    "solved dists.len()={} min_heap.len()={}",
+                    dists.len(),
+                    min_heap.len()
+                );
                 let mut path: Vec<Node> =
                     iter::successors(Some(node), |node| dists[node].1.clone()).collect();
                 path.reverse();

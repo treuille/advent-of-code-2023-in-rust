@@ -10,6 +10,7 @@ fn main() {
 
     // Solve 17a
     let mut puzzle: Puzzle = Puzzle::from_str(input);
+    println!("dim: {:?}", puzzle.grid.dim());
     let sol_17a: u32 = puzzle.solve();
     let correct_sol_17a: u32 = 870;
     println!("* 17a *");
