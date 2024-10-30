@@ -12,7 +12,6 @@ use std::ops::Add;
 /// This allows is even to compute shortest paths in infinite graphs, such as
 /// a 2D lattice graph, where the nodes are the integer points in the plane.
 pub trait Graph<Node, Weight> {
-    /// The weight of the node, which is used to compute the shortest path.
     fn weight(&self, node: Node) -> Weight;
 
     /// The neighbors of the node, which are expanded to find the shortest path.
@@ -22,10 +21,11 @@ pub trait Graph<Node, Weight> {
 
     /// Compute the shortest path from the current node to the target node.
     /// The retured path includes the start node and target nodes.
-    fn shortest_path(&self, start: Node, target: Node) -> Vec<Node>
+    fn shortest_path<TargetFn>(&self, start: Node, target_fn: TargetFn) -> Vec<Node>
     where
         Node: Hash + Eq + Clone,
         Weight: Ord + Add<Output = Weight> + Copy,
+        TargetFn: Fn(&Node) -> bool,
     {
         // For each node, store the distance to the node and the previous node.
         let mut dists: HashMap<Node, (Weight, Option<Node>)> = HashMap::new();
@@ -44,8 +44,11 @@ pub trait Graph<Node, Weight> {
                 continue;
             }
             dists.insert(node.clone(), (dist, parent));
-            if node == target {
-                break;
+            if target_fn(&node) {
+                let mut path: Vec<Node> =
+                    iter::successors(Some(node), |node| dists[node].1.clone()).collect();
+                path.reverse();
+                return path;
             }
             min_heap.extend(
                 self.neighbors(node.clone())
@@ -57,10 +60,7 @@ pub trait Graph<Node, Weight> {
                     }),
             );
         }
-        let mut path: Vec<Node> =
-            iter::successors(Some(target.clone()), |node| dists[node].1.clone()).collect();
-        path.reverse();
-        path
+        unreachable!("Target node not reachable from start node.")
     }
 }
 
@@ -117,7 +117,9 @@ mod tests {
             }
         }
 
-        let shortest_path = Lattice1D.shortest_path(-5, 5);
+        let start = -5;
+        let target = |x: &i8| *x == 5;
+        let shortest_path = Lattice1D.shortest_path(start, target);
         assert!(
             shortest_path.into_iter().eq(-5..=5),
             "Path should run from -5 to 5 increasing by 1."
@@ -140,7 +142,9 @@ mod tests {
             }
         }
 
-        let shortest_path = Lattice2D.shortest_path((-5, -5), (5, 5));
+        let start = (-5, -5);
+        let target = |(x, y): &(i8, i8)| *x == 5 && *y == 5;
+        let shortest_path = Lattice2D.shortest_path(start, target);
         assert!(
             shortest_path.into_iter().eq((-5..=5).map(|x| (x, x))),
             "Path should run from (-5,-5) to (5,5) diagonally by (+1, +1)."
