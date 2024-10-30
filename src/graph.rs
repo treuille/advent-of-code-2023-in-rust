@@ -72,19 +72,6 @@ struct MinHeapEntry<Node, Weight> {
     dist: Weight,
 }
 
-//impl<Node, Weight> MinHeapEntry<Node, Weight>
-//{
-//    /// Constructor for the first node in the min heap.
-//    fn new(node: Node) -> Self {
-//        let dist = node.weight();
-//        MinHeapEntry {
-//            node,
-//            parent: None,
-//            dist,
-//        }
-//    }
-//}
-
 /// Rather than auto-deriving Ord, we implement it manually so as only to
 /// take into account the weight, not the node itself. This allows us to use
 /// Nodes that don't implement Ord.
@@ -139,28 +126,24 @@ mod tests {
 
     // Test that the shortext path beteween two nodes in a 2D lattice graph
     // is computed correctly.
-    //#[test]
-    //fn test_2d_lattice_graph() {
-    //    #[derive(Clone, Copy, Hash, Eq, PartialEq)]
-    //    struct Node2D(i8, i8);
-    //
-    //    impl Node for Node2D {
-    //        type Weight = usize;
-    //
-    //        fn weight(&self) -> Self::Weight {
-    //            1
-    //        }
-    //
-    //        fn neighbors(&self) -> impl Iterator<Item = Self> {
-    //            (self.0 - 1..=self.0 + 1)
-    //                .flat_map(move |x| (self.1 - 1..=self.1 + 1).map(move |y| Node2D(x, y)))
-    //        }
-    //    }
-    //
-    //    let shortest_path = Lattice1D.(-5, -5).shortest_path(&Node2D(5, 5));
-    //    assert!(
-    //        shortest_path.into_iter().eq((-5..=5).map(|i| Node2D(i, i))),
-    //        "Path should run from (-5, -5) to (5, 5) by (+1, +1)."
-    //    )
-    //}
+    #[test]
+    fn test_2d_lattice_graph() {
+        struct Lattice2D;
+
+        impl Graph<(i8, i8), usize> for Lattice2D {
+            fn weight(&self, _node: (i8, i8)) -> usize {
+                1
+            }
+
+            fn neighbors(&self, (x, y): (i8, i8)) -> impl Iterator<Item = (i8, i8)> {
+                ((x - 1)..=(x + 1)).zip((y - 1)..=(y + 1))
+            }
+        }
+
+        let shortest_path = Lattice2D.shortest_path((-5, -5), (5, 5));
+        assert!(
+            shortest_path.into_iter().eq((-5..=5).map(|x| (x, x))),
+            "Path should run from (-5,-5) to (5,5) diagonally by (+1, +1)."
+        )
+    }
 }
