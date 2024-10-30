@@ -55,15 +55,11 @@ pub trait Graph<Node, Weight> {
                 path.reverse();
                 return path;
             }
-            min_heap.extend(
-                self.neighbors(node.clone())
-                    .filter(|neighbor| !dists.contains_key(neighbor))
-                    .map(|neighbor| MinHeapEntry {
-                        node: neighbor.clone(),
-                        parent: Some(node.clone()),
-                        dist: dist + self.weight(neighbor),
-                    }),
-            );
+            min_heap.extend(self.neighbors(node.clone()).map(|neighbor| MinHeapEntry {
+                node: neighbor.clone(),
+                parent: Some(node.clone()),
+                dist: dist + self.weight(neighbor),
+            }));
         }
         unreachable!("Target node not reachable from start node.")
     }
