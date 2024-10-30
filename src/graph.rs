@@ -119,7 +119,7 @@ mod tests {
         }
 
         let start = -5;
-        let target = |x: &i8| *x == 5;
+        let target = |&x: &i8| x == 5;
         let shortest_path = Lattice1D.shortest_path(start, target);
         assert!(
             shortest_path.into_iter().eq(-5..=5),
@@ -144,7 +144,7 @@ mod tests {
         }
 
         let start = (-5, -5);
-        let target = |(x, y): &(i8, i8)| *x == 5 && *y == 5;
+        let target = |&state: &(i8, i8)| state == (5, 5);
         let shortest_path = Lattice2D.shortest_path(start, target);
         assert!(
             shortest_path.into_iter().eq((-5..=5).map(|x| (x, x))),

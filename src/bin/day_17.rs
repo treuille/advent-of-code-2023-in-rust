@@ -2,6 +2,7 @@
 use advent_of_code_2023_in_rust::graph::Graph;
 use advent_of_code_2023_in_rust::grid::parse_char_grid;
 use ndarray::Array2;
+use std::rc::Rc;
 
 fn main() {
     // Parse the input, counting the number of matches per card
@@ -59,7 +60,7 @@ impl Puzzle {
     fn solve(&self) -> u32 {
         let start_state = PuzzleState::new(0, 0, Dir::Down, 0);
         let (w, h) = self.grid.dim();
-        let target_state = |state: &PuzzleState| state.pos == (w - 1, h - 1);
+        let target_state = |state: &Rc<PuzzleState>| state.pos == (w - 1, h - 1);
         let shortest_path = self.shortest_path(start_state.clone(), target_state);
         shortest_path[1..]
             .iter()
@@ -68,12 +69,12 @@ impl Puzzle {
     }
 }
 
-impl Graph<PuzzleState, u32> for Puzzle {
-    fn weight(&self, state: PuzzleState) -> u32 {
+impl Graph<Rc<PuzzleState>, u32> for Puzzle {
+    fn weight(&self, state: Rc<PuzzleState>) -> u32 {
         self.grid[state.pos]
     }
 
-    fn neighbors(&self, state: PuzzleState) -> impl Iterator<Item = PuzzleState> {
+    fn neighbors(&self, state: Rc<PuzzleState>) -> impl Iterator<Item = Rc<PuzzleState>> {
         let (i, j) = state.pos;
         let (w, h) = self.grid.dim();
         [
@@ -85,14 +86,22 @@ impl Graph<PuzzleState, u32> for Puzzle {
         ]
         .into_iter()
         .flatten()
-        .filter_map(move |mut next_state| {
-            if next_state.dir == state.dir {
-                next_state.momentum = state.momentum + 1;
-            } else if self.part_b && state.momentum != 0 && state.momentum <= 3 {
-                return None;
+        .filter_map({
+            let state = Rc::clone(&state);
+            move |mut next_state| {
+                if next_state.dir == state.dir {
+                    //next_state.momentum = state.momentum + 1;
+                    next_state = Rc::new(PuzzleState {
+                        pos: next_state.pos,
+                        dir: next_state.dir,
+                        momentum: state.momentum + 1,
+                    });
+                } else if self.part_b && state.momentum != 0 && state.momentum <= 3 {
+                    return None;
+                }
+                let max_consecutive = if self.part_b { 10 } else { 3 };
+                (next_state.momentum <= max_consecutive).then_some(next_state)
             }
-            let max_consecutive = if self.part_b { 10 } else { 3 };
-            (next_state.momentum <= max_consecutive).then_some(next_state)
         })
         .filter(move |next_state| match next_state.dir {
             Dir::Left => state.dir != Dir::Right,
@@ -104,11 +113,11 @@ impl Graph<PuzzleState, u32> for Puzzle {
 }
 
 impl PuzzleState {
-    fn new(i: usize, j: usize, dir: Dir, momentum: u8) -> Self {
-        Self {
+    fn new(i: usize, j: usize, dir: Dir, momentum: u8) -> Rc<Self> {
+        Rc::new(Self {
             pos: (i, j),
             dir,
             momentum,
-        }
+        })
     }
 }
