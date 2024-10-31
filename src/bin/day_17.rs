@@ -1,4 +1,3 @@
-//use advent_of_code_2023_in_rust::graph;
 use advent_of_code_2023_in_rust::graph::Graph;
 use advent_of_code_2023_in_rust::grid::parse_char_grid;
 use ndarray::Array2;
@@ -6,7 +5,6 @@ use std::rc::Rc;
 
 fn main() {
     // Parse the input, counting the number of matches per card
-    //let input = include_str!("../../puzzle_inputs/day_17_test.txt");
     let input = include_str!("../../puzzle_inputs/day_17.txt");
 
     // Solve 17a
@@ -90,11 +88,11 @@ impl Graph<Rc<PuzzleState>, u32> for Puzzle {
             let state = Rc::clone(&state);
             move |mut next_state| {
                 if next_state.dir == state.dir {
-                    //next_state.momentum = state.momentum + 1;
                     next_state = Rc::new(PuzzleState {
-                        pos: next_state.pos,
-                        dir: next_state.dir,
+                        //pos: next_state.pos,
+                        //dir: next_state.dir,
                         momentum: state.momentum + 1,
+                        ..*next_state
                     });
                 } else if self.part_b && state.momentum != 0 && state.momentum <= 3 {
                     return None;
