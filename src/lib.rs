@@ -45,50 +45,6 @@ mod tests {
     use ndarray::arr2;
     use std::collections::HashSet;
 
-    //#[test]
-    //fn pair_parse_regex() {
-    //    let re = Regex::new(r"(\d+) -> ([a-z]+)").unwrap();
-    //    let (a, b): (usize, &str) = parse_line(&re, "1 -> abc");
-    //    assert_eq!(a, 1);
-    //    assert_eq!(b, "abc");
-    //}
-    //
-    //#[test]
-    //fn triple_parse_regex() {
-    //    let re = Regex::new(r"(\d+) \+\+ ([a-z]+) \+\+ ([a-z])").unwrap();
-    //    let (a, b, c): (usize, &str, char) = parse_line(&re, "99 ++ xyz ++ q");
-    //    assert_eq!(a, 99);
-    //    assert_eq!(b, "xyz");
-    //    assert_eq!(c, 'q');
-    //}
-    //
-    //#[test]
-    //fn quadruple_parse_regex() {
-    //    let re = Regex::new(r"(\-?\d+),(\d+),(\d+),(\d+)").unwrap();
-    //    let (a, b, c, d): (isize, usize, usize, usize) = parse_line(&re, "-1,0,1,2");
-    //    assert_eq!(a, -1);
-    //    assert_eq!(b, 0);
-    //    assert_eq!(c, 1);
-    //    assert_eq!(d, 2);
-    //}
-    //
-    //#[test]
-    //fn lines_parse_regexs() {
-    //    let input = "
-    //    a => x
-    //    b => y
-    //    c => z
-    //    ";
-    //
-    //    let re = Regex::new(r"([a-z]) => ([a-z])").unwrap();
-    //    let mut iter = parse_lines(re, input);
-    //
-    //    assert_eq!(Some(('a', 'x')), iter.next());
-    //    assert_eq!(Some(('b', 'y')), iter.next());
-    //    assert_eq!(Some(('c', 'z')), iter.next());
-    //    assert_eq!(None, iter.next());
-    //}
-    //
     #[test]
     fn test_grid_parsing() {
         let to_u32 = |c: char| c.to_digit(10).unwrap();
