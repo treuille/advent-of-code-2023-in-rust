@@ -30,6 +30,18 @@ impl<'a> FromStr<'a> for &'a str {
     }
 }
 
+impl FromStr<'_> for i8 {
+    fn from_str(s: &'_ str) -> Self {
+        s.parse().unwrap()
+    }
+}
+
+impl FromStr<'_> for u8 {
+    fn from_str(s: &'_ str) -> Self {
+        s.parse().unwrap()
+    }
+}
+
 impl FromStr<'_> for i32 {
     fn from_str(s: &'_ str) -> Self {
         s.parse().unwrap()
