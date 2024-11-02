@@ -50,7 +50,7 @@ fn parse_input(input: &str) -> (Instructions, Instructions) {
             1 => 'D',
             2 => 'L',
             3 => 'U',
-            _ => panic!("Invalid direction: {}", dir_b),
+            _ => panic!("Invalid direction: {dir_b}"),
         };
         instructions_b.push((dir_b, steps_b));
     }
@@ -82,7 +82,7 @@ fn solve(instructions: &Instructions) -> i64 {
                         'L' => pos.0 -= steps,
                         'D' => pos.1 += steps,
                         'U' => pos.1 -= steps,
-                        _ => panic!("Invalid direction: {}", dir),
+                        _ => panic!("Invalid direction: {dir}"),
                     };
                     Some(*pos)
                 }),
