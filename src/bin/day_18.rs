@@ -72,7 +72,7 @@ fn solve(instructions: &Instructions) -> i64 {
     let intial_vertex = (0, 0);
     iter::once(intial_vertex)
         .chain(
-            // Calculate a succession of cell centers by movign the initial vertex
+            // Calculate a succession of cell centers by moving the initial vertex
             // around, logo-style, according to the instructions.
             instructions
                 .iter()
@@ -91,9 +91,11 @@ fn solve(instructions: &Instructions) -> i64 {
         .cycle()
         .tuple_windows()
         .map(|(c1, c2, c3)| {
-            // Now move each vertex `c2` located at a cell center to
+            // Now move each vertex `c2` (a cell center) to
             // a cell corner. We do this by looking at the preceeding
-            // and following vertices, `c1` and `c3`, respectively.
+            // and following vertices, `c1` and `c3`, respectively, and
+            // creating a coordinate system `dx` and `dy`. The handedness
+            // of the coordinate system determines the corner.
             let dx = (safe_norm(c2.0, c3.0), safe_norm(c2.1, c3.1));
             let dy = (safe_norm(c2.0, c1.0), safe_norm(c2.1, c1.1));
             let rot_dx = (-dx.1, dx.0);
