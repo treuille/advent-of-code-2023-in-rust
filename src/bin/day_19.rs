@@ -456,6 +456,47 @@ fn parse_input(input: &'static str) -> (HashMap<WorkflowName, Workflow>, Vec<Par
     (workflows, parts)
 }
 
+struct PartRange2 {
+    ranges: HashMap<char, (usize, usize)>,
+    children: PartRangeChildren,
+}
+
+enum PartRangeChildren {
+    All,
+    Split {
+        split_char: char,
+        split_val: usize,
+        left: Box<PartRange2>,
+        right: Box<PartRange2>,
+    },
+}
+
+#[allow(unused_variables)]
+impl PartRange2 {
+    /// Intsersects two part ranges and returns
+    /// (intserection, self_remainder, other_remainder)
+    /// so that:
+    ///
+    /// 1. `intersection` is the subset of both self and other.
+    /// 2. `self_remainder` is a subset of `self`.
+    /// 3. `other_remainder` is a subset of `other`.
+    /// 4. All three PartRanges are non-overlapping.
+    /// 5. The union of the PartRanges equals the union of `self` and `other`.
+    fn intersect(&self, other: &Self) -> (Self, Self, Self) {
+        todo!()
+    }
+
+    /// Finds the union of these two part ranges
+    fn union(&self, other: &Self) -> Self {
+        todo!()
+    }
+
+    /// Returns true if this PartRange is empty
+    fn empty(&self) -> bool {
+        todo!()
+    }
+}
+
 //// Solve 19a
 //let sol_19a: usize = 12;
 //let correct_sol_19a: usize = 32;
