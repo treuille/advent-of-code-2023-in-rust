@@ -1,5 +1,5 @@
 fn main() {
-    // Parse the input, counting the number of matches per card
+    // Parse the input
     let input = include_str!("../../puzzle_inputs/day_08_test.txt");
     println!("input len: {}", input.len());
     println!("input:\n{}", input);
