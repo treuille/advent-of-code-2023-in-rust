@@ -1,13 +1,19 @@
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    unused_imports,
+    unused_variables,
+    clippy::doc_lazy_continuation
+)]
 
 use advent_of_code_2023_in_rust::parse_regex::parse_line;
-use itertools::Itertools;
+use itertools::{iproduct, Itertools};
 use regex::Regex;
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 
 /// The four characters that can be in a part
-const VAL_CHARS: [char; 4] = ['a', 's', 'm', 'x'];
+const AXES: [char; 4] = ['a', 's', 'm', 'x'];
 
 type WorkflowName = &'static str;
 
@@ -29,16 +35,23 @@ impl NextWorkflow {
 }
 
 #[derive(Debug)]
+struct Instruction {
+    axis: char,
+    test: Ordering,
+    value: usize,
+}
+
+#[derive(Debug)]
 struct Workflow {
-    instructions: Vec<(char, Ordering, usize, NextWorkflow)>,
+    instructions: Vec<(Instruction, NextWorkflow)>,
     fallback: NextWorkflow,
 }
 
 impl Workflow {
     fn run(&self, part: &Part) -> NextWorkflow {
-        for (val_char, test, workflow_val, next_workflow) in &self.instructions {
-            let part_val = part.get(val_char).unwrap();
-            if part_val.cmp(workflow_val) == *test {
+        for (instruction, next_workflow) in &self.instructions {
+            let part_val = part.get(&instruction.axis).unwrap();
+            if part_val.cmp(&instruction.value) == instruction.test {
                 return *next_workflow;
             }
         }
@@ -48,357 +61,499 @@ impl Workflow {
 
 type Part = HashMap<char, usize>;
 
-/// A PartSet is is a set of non-overlapping PartRanges. It accepts the union of
-/// those ranges.
-#[derive(Debug, Clone)]
-struct PartSet(Vec<PartRange>);
+/// A singly hyper-rectangular cube in part space
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PartCube(HashMap<char, (usize, usize)>);
 
-impl PartSet {
-    /// Constructor
-    fn new(part_ranges: Vec<PartRange>) -> Self {
-        let part_set = Self(part_ranges);
-        assert!(part_set.non_overlapping(), "Range overlap: {:?}", part_set);
-        assert!(part_set.all_nonempty(), "Empty ranges: {:?}", part_set);
-        part_set
-    }
+/// A disjoint union of PartCubes
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PartArea(HashSet<PartCube>);
 
-    /// The PartSet that accepts all values
-    fn all() -> Self {
-        Self::new(vec![PartRange::all()])
-    }
-
-    /// The PartSet that accepts no values
-    fn none() -> Self {
-        Self::new(vec![])
-    }
-
-    /// Union this PartSet with another PartSet
-    fn union(&self, other: &Self) -> Self {
-        let PartSet(self_ranges) = self;
-        let PartSet(other_ranges) = other;
-        let mut self_ranges = self_ranges.clone();
-        let mut other_ranges = other_ranges.clone();
-        let mut union_ranges: Vec<PartRange> = Vec::new();
-        //let mut other_ranges = self_ranges.clone();
-        while let Some(self_range) = self_ranges.pop() {
-            for other_range in other_ranges {
-                let (intersection, self_remainder, other_remainder) =
-                    self_range.intersect_part_range(&other_range);
-                if !intersection.empty() {
-                    union_ranges.push(intersection);
-                }
-                if !self_remainder.empty() {
-                    self_ranges.push(self_remainder);
-                }
-                if !other_remainder.empty() {
-                    other_ranges.push(other_remainder);
-                }
-            }
-        }
-        //for self_range in self_ranges {
-        //    for other_range in other_ranges {
-        //        let (intersection, self_remainder, other_remainder) =
-        //            self_range.intersect_part_range(other_range);
-        //        todo!()
-        //    }
-        //}
-        todo!()
-    }
-
-    /// Intersect this PartSet with a instruction
-    /// Returns (intersection, remainder)
-    /// where intersection is the subset of the PartSet that accepts the instruction
-    /// and remainder is the subset of the PartSet that does not accept the instruction
-    fn intersect_instruction(
-        &self,
-        val_char: char,
-        test: Ordering,
-        val_num: usize,
-    ) -> (Self, Self) {
-        let PartSet(part_ranges) = self;
-        let mut intersection_ranges: Vec<PartRange> = Vec::new();
-        let mut remainder_ranges: Vec<PartRange> = Vec::new();
-        for part_range in part_ranges {
-            let (intersection, remainder) =
-                part_range.intersect_instruction(val_char, test, val_num);
-            if !intersection.empty() {
-                intersection_ranges.push(intersection);
-            }
-            if !remainder.empty() {
-                remainder_ranges.push(remainder);
-            }
-        }
-        (Self::new(intersection_ranges), Self::new(remainder_ranges))
-    }
-
-    /// Finds the intersection of this PartSet with a workflow
-    fn intersect_workflow(
-        &self,
-        workflow_name: WorkflowName,
-        workflows: &HashMap<WorkflowName, Workflow>,
-    ) -> PartSet {
-        let workflow = workflows.get(workflow_name).unwrap();
-        let mut part_set: PartSet = self.clone();
-        let mut workflow_intersection = PartSet::all();
-        for &(val_char, test, val_num, next_workflow) in &workflow.instructions {
-            if part_set.empty() {
-                break;
-            }
-            let (intersection, remainder) = part_set.intersect_instruction(val_char, test, val_num);
-            if !intersection.empty() {
-                workflow_intersection = workflow_intersection.union(&match next_workflow {
-                    NextWorkflow::Accept => intersection,
-                    NextWorkflow::Reject => PartSet::none(),
-                    NextWorkflow::Workflow(next_workflow) => {
-                        intersection.intersect_workflow(next_workflow, workflows)
-                    }
+impl PartCube {
+    /// Constructor. None if the part cube is empty.
+    /// NOTE: Tested with assertions
+    fn new(cube: HashMap<char, (usize, usize)>) -> Option<Self> {
+        let cube = Self(cube);
+        match cube.empty() {
+            true => None,
+            false => {
+                cube.sample().for_each(|part| {
+                    assert!(cube.contains_part(&part));
                 });
+                Some(cube)
             }
-            part_set = remainder;
         }
-        workflow_intersection = workflow_intersection.union(&match workflow.fallback {
-            NextWorkflow::Accept => part_set,
-            NextWorkflow::Reject => PartSet::none(),
-            NextWorkflow::Workflow(next_workflow) => {
-                part_set.intersect_workflow(next_workflow, workflows)
-            }
+    }
+
+    /// The full area of the part space
+    /// WARNING: Not tested
+    fn all() -> Self {
+        Self::new(AXES.iter().map(|&val_char| (val_char, (1, 4001))).collect()).unwrap()
+    }
+
+    /// Returns the number of parts in this area.
+    /// WARNING: Not tested
+    fn n_parts(&self) -> usize {
+        let PartCube(cube) = self;
+        cube.values().map(|(min, max)| max - min).product()
+    }
+
+    /// Sample usage
+    /// NOTE: Tested with assertions
+    fn sample(&self) -> impl Iterator<Item = Part> + '_ {
+        assert!(!self.empty());
+        let PartCube(cube) = self;
+        AXES.iter()
+            .map(|&axis| {
+                let &(min, max) = cube.get(&axis).unwrap();
+                [min, (min + max) / 2, max - 1]
+            })
+            .multi_cartesian_product()
+            .map(|vals| {
+                let part = AXES
+                    .iter()
+                    .copied()
+                    .zip(vals)
+                    .collect::<HashMap<char, usize>>();
+                //println!("self: {:?} -sample-> part: {:?}", cube.clone(), part);
+                assert!(self.contains_part(&part));
+                part
+            })
+    }
+
+    /// Intersects the PartCue with an Instruction, returning
+    /// (intersection, remainder) where
+    /// 1. intersection is the subset of self that would be accepted by the instructiono
+    /// 2. remainder is the subset of self that would be rejected by the instruction
+    /// 3. The union of intersection and remainder equals self
+    /// 4. If either value is empty, the corresponding value is None
+    /// NOTE: Tested with assertions
+    fn intersect_instruction(&self, instruction: &Instruction) -> (Option<Self>, Option<Self>) {
+        let PartCube(cube) = self;
+        let &(min, max) = cube.get(&instruction.axis).unwrap();
+        let (intersection_min, intersection_max, remainder_min, remainder_max) =
+            match instruction.test {
+                Ordering::Less => (
+                    min.min(instruction.value),
+                    max.min(instruction.value),
+                    min.max(instruction.value + 1),
+                    max.max(instruction.value + 1),
+                ),
+                Ordering::Greater => (
+                    min.max(instruction.value + 1),
+                    max.max(instruction.value + 1),
+                    min.min(instruction.value),
+                    max.min(instruction.value),
+                ),
+                _ => panic!("Invalid test: {:?}", instruction.test),
+            };
+        let new_cube = |new_min, new_max| {
+            let mut new_cube = cube.clone();
+            new_cube.insert(instruction.axis, (new_min, new_max));
+            Self::new(new_cube)
+        };
+
+        let intersection_cube = new_cube(intersection_min, intersection_max);
+        let remainder_cube = new_cube(remainder_min, remainder_max);
+
+        // debug - begin - test the results through sampling
+        if let Some(intersection_cube) = &intersection_cube {
+            assert!(intersection_cube
+                .sample()
+                .all(|part| self.contains_part(&part)
+                    && intersection_cube.contains_part(&part)
+                    && part[&instruction.axis].cmp(&instruction.value) == instruction.test));
+        }
+        if let Some(remainder_cube) = &remainder_cube {
+            assert!(remainder_cube.sample().all(|part| self.contains_part(&part)
+                && remainder_cube.contains_part(&part)
+                && part[&instruction.axis].cmp(&instruction.value) != instruction.test));
+        }
+        // debug - end
+
+        (intersection_cube, remainder_cube)
+    }
+
+    /// WARNING: Not tested
+    fn contains_part(&self, part: &Part) -> bool {
+        let PartCube(cube) = self;
+        cube.iter().all(|(axis, (min, max))| {
+            let part_val = part.get(axis).unwrap();
+            min <= part_val && max > part_val
+        })
+    }
+
+    /// NOTE: Tested with assertions
+    fn contains_cube(&self, other: &PartCube) -> bool {
+        let PartCube(self_cube) = self;
+        let PartCube(other_cube) = other;
+        let contains_cube = AXES.iter().all(|axis| {
+            let (self_min, self_max) = self_cube.get(axis).unwrap();
+            let (other_min, other_max) = other_cube.get(axis).unwrap();
+            self_min <= other_min && self_max >= other_max
         });
-        workflow_intersection
-    }
-
-    /// Returns true if the PartSet is empty
-    fn empty(&self) -> bool {
-        assert!(self.non_overlapping(), "Range overlap: {:?}", self);
-        assert!(self.all_nonempty(), "Empty ranges: {:?}", self);
-        let PartSet(part_ranges) = self;
-        part_ranges.is_empty()
-    }
-
-    /// Returns true if all PartRanges are non-empty
-    fn all_nonempty(&self) -> bool {
-        let PartSet(part_ranges) = self;
-        part_ranges.iter().all(|part_range| !part_range.empty())
-    }
-
-    /// Returns true if all PartRanges are mutaually non-overlapping
-    fn non_overlapping(&self) -> bool {
-        let PartSet(part_ranges) = self;
-        for (i, self_part_range) in part_ranges.iter().enumerate() {
-            for other_part_range in part_ranges.iter().skip(i + 1) {
-                let (intersection, _self_remainder, _other_remainder) =
-                    self_part_range.intersect_part_range(other_part_range);
-                if !intersection.empty() {
-                    return false;
-                }
-            }
+        if contains_cube {
+            assert!(other.sample().all(|part| self.contains_part(&part)));
         }
-        true
+        contains_cube
+    }
+
+    /// NOTE: Tested with assertions
+    fn intersects(&self, other: &Self) -> bool {
+        let PartCube(self_cube) = self;
+        let PartCube(other_cube) = other;
+        let intersects = AXES.iter().all(|axis| {
+            let (self_min, self_max) = self_cube.get(axis).unwrap();
+            let (other_min, other_max) = other_cube.get(axis).unwrap();
+            self_min < other_max && self_max > other_min
+        });
+        if intersects {
+            assert!(self
+                .sample()
+                .chain(other.sample())
+                .all(|part| { self.contains_part(&part) && other.contains_part(&part) }));
+        }
+        intersects
+    }
+
+    /// WARNING: Not tested
+    fn empty(&self) -> bool {
+        let PartCube(cube) = self;
+        cube.values().any(|(min, max)| min >= max)
     }
 }
 
-/// A PartRange is a range of values
-#[derive(Debug, Clone)]
-struct PartRange(HashMap<char, (usize, usize)>);
-
-impl PartRange {
-    /// The PartRange that accepts all values
-    fn all() -> Self {
-        Self(
-            VAL_CHARS
-                .iter()
-                .map(|&val_char| (val_char, (1, 4001)))
-                .collect(),
-        )
+impl Hash for PartCube {
+    /// WARNING: Not tested
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let PartCube(cube) = self;
+        for axis in AXES.iter() {
+            cube[axis].hash(state);
+        }
     }
+}
 
-    /// The PartRange that accepts no values
-    fn none() -> Self {
-        Self(
-            VAL_CHARS
-                .iter()
-                .map(|&val_char| (val_char, (0, 0)))
-                .collect(),
-        )
-    }
+#[allow(unused_variables)]
+impl PartArea {
+    /// Construct a PartArea from a list of PartCubes.
+    /// Also runs a bunch of validation checks.
+    /// NOTE: Tested with assertions
+    fn new(cubes: HashSet<PartCube>) -> Self {
+        // Make sure that the all the cubes are non-empty
+        assert!(cubes.iter().all(|cube| !cube.empty()));
 
-    /// Intersects this range with an instruction.
-    /// Returns the tuple (intersection, remainder) where
-    fn intersect_instruction(
-        &self,
-        val_char: char,
-        test: Ordering,
-        val_num: usize,
-    ) -> (Self, Self) {
-        let PartRange(ranges) = self;
-        let (min, max) = ranges.get(&val_char).unwrap();
-
-        // Calculate the the intersection
-        let (intersection_min, intersection_max) = match test {
-            Ordering::Less => (*min, val_num),
-            Ordering::Greater => (val_num, *max),
-            _ => unreachable!("Invalid test: {:?}", test),
-        };
-        let mut intersection_ranges = ranges.clone();
-        intersection_ranges.insert(val_char, (intersection_min, intersection_max));
-
-        // Now calculate the remainder
-        let (remainder_min, remainder_max) = match test {
-            Ordering::Less => (val_num, *max),
-            Ordering::Greater => (*min, val_num),
-            _ => unreachable!("Invalid test: {:?}", test),
-        };
-        let mut remainder_ranges = ranges.clone();
-        remainder_ranges.insert(val_char, (remainder_min, remainder_max));
-
-        (Self(intersection_ranges), Self(remainder_ranges))
-    }
-
-    /// Intersects this PartRange with another.
-    /// Returns the tuple (intersection, self_remainder, other_remainder) where
-    ///
-    /// 1. `intersection` is the subset of both self and other.
-    /// 2. `self_remainder` is a subset of `self`.
-    /// 3. `other_remainder` is a subset of `other`.
-    /// 4. All three PartRanges are non-overlapping.
-    /// 5. The union of the PartRanges equals the union of `self` and `other`.
-    fn intersect_part_range(&self, other: &Self) -> (Self, PartSet, PartSet) {
-        let PartRange(self_ranges) = self;
-        let PartRange(other_ranges) = other;
-        let intersection_ranges: HashMap<char, (usize, usize)> = HashMap::new();
-        let self_remainder_ranges: HashMap<char, Vec<(usize, usize)>> = VAL_CHARS
-            .iter()
-            .map(|&val_car| (char, Vec::new()))
-            .collect();
-        let other_remainder_ranges: HashMap<char, Vec<(usize, usize)>> = VAL_CHARS
-            .iter()
-            .map(|&val_car| (char, Vec::new()))
-            .collect();
-        for val_char in VAL_CHARS.iter() {
-            let &(self_min, self_max) = self_ranges.get(val_char).unwrap();
-            let &(other_min, other_max) = other_ranges.get(val_char).unwrap();
-            let mut indices = vec![self_min, self_max, other_min, other_max];
-            indices.sort();
-            let subset = |min_1, max_1, min_2, max_2| min_1 >= min_2 && max_1 <= max_2;
-            for (&min, &max) in indices.iter().tuple_windows() {
-                let self_subset = subset(self_min, self_max, other_min, other_max);
-                let other_subset = subset(self_min, self_max, other_min, other_max);
-                match (self_subset, other_subset) {
-                    (true, true) => {
-                        assert!(intersection_ranges.get(val_char).is_none());
-                        intersection_ranges.insert(*val_char, (min, max));
-                    }
-                    (true, false) => self_remainder_ranges[val_char].push((min, max)),
-                    (false, true) => other_remainder_ranges[val_char].push((min, max)),
-                    (false, false) => unreachable!(),
-                }
+        // Make sure that none of the cubes overlap
+        for (i, cube) in cubes.iter().enumerate() {
+            for other_cube in cubes.iter().skip(i + 1) {
+                assert!(!cube.intersects(other_cube));
             }
         }
 
-        //    let (intersection_min, intersection_max) = (
-        //        std::cmp::max(*self_min, *other_min),
-        //        std::cmp::min(*self_max, *other_max),
-        //    );
-        //    let (self_remainder_min, self_remainder_max) = (
-        //        std::cmp::min(*self_min, *other_min),
-        //        std::cmp::max(*self_min, *other_min),
-        //    );
-        //    let (other_remainder_min, other_remainder_max) = (
-        //        std::cmp::min(*self_max, *other_max),
-        //        std::cmp::max(*self_max, *other_max),
-        //    );
-        //    intersection_ranges.insert(*val_char, (intersection_min, intersection_max));
-        //    self_remainder_ranges.insert(*val_char, (self_remainder_min, self_remainder_max));
-        //    other_remainder_ranges.insert(*val_char, (other_remainder_min, other_remainder_max));
-        //}
-        //VAL_CHARS.iter().map(|&val_char| todo!()).collect();
-        //let intersection = Self(intersection_ranges);
-        //let self_remainder = Self(self_remainder_ranges);
-        //let other_remainder = Self(other_remainder_ranges);
+        Self(cubes)
+    }
 
-        assert!(intersection.subset_eq(self)); // Condition 1
-        assert!(intersection.subset_eq(other)); // Condition 1
-        assert!(self_remainder.subset_eq(self)); // Condition 2
-        assert!(other_remainder.subset_eq(other)); // Condition 3
-        assert!(!intersection.overlaps(&self_remainder)); // Condition 4
-        assert!(!self_remainder.overlaps(&other_remainder)); // Condition 4
-        assert!(!other_remainder.overlaps(&intersection)); // Condition 4
+    /// The full area of the part space
+    /// WARNING: Not tested
+    fn all() -> Self {
+        Self::new(HashSet::from([PartCube::all()]))
+    }
 
-        (intersection, self_remainder, other_remainder)
+    /// An empty area of the part space
+    /// WARNING: Not tested
+    fn none() -> Self {
+        Self::new(HashSet::new())
+    }
+
+    /// Returns the number of parts in this area.
+    /// WARNING: Not tested
+    fn n_parts(&self) -> usize {
+        let PartArea(cubes) = self;
+        cubes.iter().map(|part_cube| part_cube.n_parts()).sum()
+    }
+
+    /// Intersects two parts and return the triple:
+    /// `(intersection, self_remainder, other_remainder)`
+    /// with the following properties:
+    /// 1. `intersection` is the subset of both `self` and `other`.
+    /// 2. `self_remainder` is a subset of `self`.
+    /// 3. `other_remainder` is a subset of `other`.
+    /// 4. The three piecesw are non-overlapping
+    /// 5. The union of the three pieces equals the union of `self` and `other`.
+    fn intersect(&self, other: &Self) -> (Self, Self, Self) {
+        todo!("implement PartArea::intersect(..)")
+    }
+
+    /// Returns the union of two PartAreas.
+    /// NOTE: Tested with assertions
+    fn union(&self, other: &Self) -> Self {
+        let union = Self::new(
+            self.outer(other)
+                .filter(|part_cube| self.contains_cube(part_cube) || other.contains_cube(part_cube))
+                .collect(),
+        );
+
+        // debug - begin - test the results through sampling
+        assert!(union
+            .sample()
+            .all(|part| self.contains_part(&part) || other.contains_part(&part)));
+        println!(
+            "Sucessfully tested {} samples in union(..)",
+            union.sample().count()
+        );
+        // debug - end
+
+        union
+    }
+
+    /// Subtracts other from self, returning the subset of self that is not in other.
+    /// NOTE: Tested with assertions
+    fn subtract(&self, other: &Self) -> Self {
+        let difference = Self::new(
+            self.outer(other)
+                .filter(|part_cube| {
+                    self.contains_cube(part_cube) && !other.contains_cube(part_cube)
+                })
+                .collect(),
+        );
+
+        // debug - begin - test the results through sampling
+        assert!(difference
+            .sample()
+            .all(|part| self.contains_part(&part) && !other.contains_part(&part)));
+        println!(
+            "Sucessfully tested {} samples in subtract(..)",
+            difference.sample().count()
+        );
+        // debug - end
+
+        difference
+    }
+
+    /// Returns a sequence of PartCubes where
+    /// 1. Each part cube is either strictly inside or strictly outside of self and other
+    /// 2. The union of the PartCubes is a superset of self and other
+    fn outer(&self, other: &Self) -> impl Iterator<Item = PartCube> {
+        AXES.iter()
+            .map(|&axis| {
+                let get_indices = |PartArea(cubes): &PartArea| {
+                    cubes
+                        .iter()
+                        .flat_map(|PartCube(cube): &PartCube| {
+                            let &(min, max) = cube.get(&axis).unwrap();
+                            [min, max]
+                        })
+                        .collect::<Vec<usize>>()
+                };
+                get_indices(self)
+                    .into_iter()
+                    .chain(get_indices(other))
+                    .sorted()
+                    .dedup()
+                    .tuple_windows()
+            })
+            .multi_cartesian_product()
+            .map(|ranges| {
+                PartCube::new(HashMap::from([
+                    ('a', ranges[0]),
+                    ('s', ranges[1]),
+                    ('m', ranges[2]),
+                    ('x', ranges[3]),
+                ]))
+                .unwrap()
+            })
+    }
+
+    fn contains_part(&self, part: &Part) -> bool {
+        let PartArea(cubes) = self;
+        cubes.iter().any(|cube| cube.contains_part(part))
+    }
+
+    fn contains_cube(&self, part_cube: &PartCube) -> bool {
+        let PartArea(cubes) = self;
+        cubes.iter().any(|cube| cube.contains_cube(part_cube))
     }
 
     fn empty(&self) -> bool {
-        let PartRange(ranges) = self;
-        ranges.values().any(|(min, max)| min >= max)
+        let PartArea(cubes) = self;
+        cubes.is_empty()
     }
 
-    /// Returns true if this PartRange overlaps with another
-    fn overlaps(&self, other: &Self) -> bool {
-        let PartRange(self_ranges) = self;
-        let PartRange(other_ranges) = other;
-        for val_char in VAL_CHARS.iter() {
-            let (self_min, self_max) = self_ranges.get(val_char).unwrap();
-            let (other_min, other_max) = other_ranges.get(val_char).unwrap();
-            if !(self_min >= other_max || other_min >= self_max) {
-                return true;
+    /// Returns the subset of &self that would be accepted by the workflow.
+    fn intersect_workflow(
+        &self,
+        next_workflow: NextWorkflow,
+        workflows: &HashMap<WorkflowName, Workflow>,
+    ) -> Self {
+        match next_workflow {
+            NextWorkflow::Accept => self.clone(),
+            NextWorkflow::Reject => PartArea::none(),
+            NextWorkflow::Workflow(workflow_name) => {
+                let workflow = workflows.get(workflow_name).unwrap();
+                let mut result = PartArea::none();
+                let mut remaining_area = self.clone();
+                println!(
+                    "In workflow: {:?} result.size: {} remaining_area.size: {}",
+                    workflow_name,
+                    result.n_parts(),
+                    remaining_area.n_parts()
+                );
+                for (instruction, next_workflow) in &workflow.instructions {
+                    let (intersection, remainder) =
+                        remaining_area.intersect_instruction(instruction);
+                    if !intersection.empty() {
+                        // TODO: Probably can get rid of this if statement above.
+                        result = result
+                            .union(&intersection.intersect_workflow(*next_workflow, workflows))
+                    }
+                    if remainder.empty() {
+                        return result;
+                    }
+                    remaining_area = remainder;
+                    println!(
+                        "In workflow: {:?} result.size: {} remaining_area.size: {}",
+                        workflow_name,
+                        result.n_parts(),
+                        remaining_area.n_parts()
+                    );
+                }
+                if !remaining_area.empty() {
+                    result.union(&remaining_area.intersect_workflow(workflow.fallback, workflows));
+                }
+
+                // debug - begin - test the results through sampling
+                //todo!("Write code that tests the result acceptance");
+                assert!(result.sample().all(|part| self.contains_part(&part)
+                    && part_accepted_by_workflow(&part, next_workflow, workflows)));
+                let remaining_area = remaining_area.subtract(&result);
+                assert!(remaining_area.sample().all(|part| {
+                    if !self.contains_part(&part) {
+                        println!("part: {:?} not in self", part);
+                        return false;
+                    } else if part_accepted_by_workflow(&part, next_workflow, workflows) {
+                        println!("part: {:?} accepted by workflow", part);
+                        println!("workflow: {:?}", workflow);
+                        return false;
+                    }
+                    true
+                }));
+                println!(
+                    "Sucessfully tested {} samples in intersect_workflow(..)",
+                    result.sample().count() + remaining_area.sample().count()
+                );
+                // debug - end
+
+                result
             }
         }
-        false
     }
 
-    /// Returns true if this PartRange is a subset of, or equal to, another
-    fn subset_eq(&self, other: &Self) -> bool {
-        let PartRange(self_ranges) = self;
-        let PartRange(other_ranges) = other;
-        for val_char in VAL_CHARS.iter() {
-            let (self_min, self_max) = self_ranges.get(val_char).unwrap();
-            let (other_min, other_max) = other_ranges.get(val_char).unwrap();
-            let self_empty = self_min >= self_max;
-            let other_empty = other_min >= other_max;
-            match (self_empty, other_empty) {
-                (true, _) => continue,
-                (false, true) => return false,
-                (false, false) if (self_min < other_min || self_max > other_max) => return false,
-                _ => continue,
-            }
-        }
-        true
+    /// Intersects the PartArea with an Instruction, returning
+    /// (intersection, remainder) where:
+    /// 1. `intersection` is the subset of `self` that would be accepted by the instruction
+    /// 2. `remainder` is the subset of `self` that would be rejected by the instruction
+    /// 3. The union of `intersection` and `remainder` equals `self`
+    /// NOTE: Tested with assertions
+    fn intersect_instruction(&self, instruction: &Instruction) -> (Self, Self) {
+        let PartArea(cubes) = self;
+        let (intersection, remainder): (Vec<Option<PartCube>>, Vec<Option<PartCube>>) = cubes
+            .iter()
+            .map(|cube| cube.intersect_instruction(instruction))
+            .unzip();
+
+        let intersection_area = Self::new(intersection.into_iter().flatten().collect());
+        let remainder_area = Self::new(remainder.into_iter().flatten().collect());
+
+        // debug - begin - assert that the split happened correctly
+        let Instruction { axis, test, value } = instruction;
+        assert!(intersection_area
+            .sample()
+            .all(|part| self.contains_part(&part)
+                && intersection_area.contains_part(&part)
+                && !remainder_area.contains_part(&part)
+                && part[axis].cmp(value) == *test));
+        assert!(remainder_area.sample().all(|part| self.contains_part(&part)
+            && !intersection_area.contains_part(&part)
+            && remainder_area.contains_part(&part)
+            && part[axis].cmp(value) != *test));
+        println!(
+            "Sucessfully tested {} kamples in intersect_instruction(..)",
+            intersection_area.sample().count() + remainder_area.sample().count()
+        );
+        // debug - end
+
+        (intersection_area, remainder_area)
+    }
+
+    /// NOTE: Tested with assertions
+    fn sample(&self) -> impl Iterator<Item = Part> + '_ {
+        let PartArea(cubes) = self;
+        assert!(cubes
+            .iter()
+            .flat_map(|cube| cube.sample())
+            .all(|part| self.contains_part(&part)));
+        cubes.iter().flat_map(|cube| cube.sample())
     }
 }
 
 fn main() {
     // Parse the input, counting the numbeof matches per card
     //let input = include_str!("");
+    //let input = include_str!("../../puzzle_inputs/day_19.txt");
     let input = include_str!("../../puzzle_inputs/day_19_test.txt");
     let (workflows, parts) = parse_input(input);
 
-    // Run the simulation for part A
-    println!("Part A: {}", solve_part_a(&workflows, &parts));
+    // Solve 19a
+    let sol_19a: usize = solve_part_a(&workflows, &parts);
+    let correct_sol_19a: usize = 19114;
+    println!("* 19a *");
+    println!("My solution: {sol_19a}");
+    println!("Correct solution: {correct_sol_19a}");
+    println!("Equal: {}\n", sol_19a == correct_sol_19a);
 
-    // Run the simulation for part B
-    println!("Part B: {}", solve_part_b(&workflows, &parts));
+    // Solve 19b
+    let sol_19b: usize = solve_part_b(&workflows);
+    let correct_sol_19b: usize = 167409079868000;
+    println!("* 19b *");
+    println!("My solution: {sol_19b}");
+    println!("Correct solution: {correct_sol_19b}");
+    println!("Equal: {:?}\n", sol_19b.cmp(&correct_sol_19b));
+}
+
+fn part_accepted_by_workflow(
+    part: &Part,
+    mut workflow: NextWorkflow,
+    workflows: &HashMap<WorkflowName, Workflow>,
+) -> bool {
+    while let NextWorkflow::Workflow(workflow_name) = workflow {
+        workflow = workflows.get(workflow_name).unwrap().run(part);
+    }
+    match workflow {
+        NextWorkflow::Accept => true,
+        NextWorkflow::Reject => false,
+        _ => unreachable!("Invalid workflow: {:?}", workflow),
+    }
 }
 
 fn solve_part_a(workflows: &HashMap<WorkflowName, Workflow>, parts: &Vec<Part>) -> usize {
     let mut answer: usize = 0;
+    let workflow = NextWorkflow::Workflow("in");
     for part in parts {
-        let mut workflow = NextWorkflow::Workflow("in");
-        while let NextWorkflow::Workflow(workflow_name) = workflow {
-            workflow = workflows.get(workflow_name).unwrap().run(part);
-        }
-        match workflow {
-            NextWorkflow::Accept => answer += part.values().sum::<usize>(),
-            NextWorkflow::Reject => continue,
-            _ => unreachable!("Invalid workflow: {:?}", workflow),
+        if part_accepted_by_workflow(part, workflow, workflows) {
+            answer += part.values().sum::<usize>();
         }
     }
     answer
 }
 
+#[allow(unused_variables)]
 fn solve_part_b(workflows: &HashMap<WorkflowName, Workflow>) -> usize {
-    let accepted_ranges = PartSet::all().intersect_workflow("in", workflows);
-    println!("accepted_ranges: {:?}", accepted_ranges);
-
-    todo!()
+    let parts = PartArea::all();
+    let start_workflow = NextWorkflow::Workflow("in");
+    let parts: PartArea = parts.intersect_workflow(start_workflow, workflows);
+    println!("parts: {:?}", parts);
+    let answer: usize = parts.n_parts();
+    println!("answer: {}", answer);
+    answer
 }
 
 fn parse_input(input: &'static str) -> (HashMap<WorkflowName, Workflow>, Vec<Part>) {
@@ -417,7 +572,7 @@ fn parse_input(input: &'static str) -> (HashMap<WorkflowName, Workflow>, Vec<Par
             let instructions = instructions
                 .into_iter()
                 .map(|instruction| {
-                    let (val_char, test, val_num, next_workflow): (char, char, usize, &str) =
+                    let (axis, test, value, next_workflow): (char, char, usize, &str) =
                         parse_line(&instruction_regex, instruction);
                     let test = match test {
                         '<' => Ordering::Less,
@@ -425,7 +580,7 @@ fn parse_input(input: &'static str) -> (HashMap<WorkflowName, Workflow>, Vec<Par
                         _ => panic!("Invalid test: {:?}", test),
                     };
                     let next_workflow = NextWorkflow::from_str(next_workflow);
-                    (val_char, test, val_num, next_workflow)
+                    (Instruction { axis, test, value }, next_workflow)
                 })
                 .collect();
             (
@@ -455,61 +610,3 @@ fn parse_input(input: &'static str) -> (HashMap<WorkflowName, Workflow>, Vec<Par
 
     (workflows, parts)
 }
-
-struct PartRange2 {
-    ranges: HashMap<char, (usize, usize)>,
-    children: PartRangeChildren,
-}
-
-enum PartRangeChildren {
-    All,
-    Split {
-        split_char: char,
-        split_val: usize,
-        left: Box<PartRange2>,
-        right: Box<PartRange2>,
-    },
-}
-
-#[allow(unused_variables)]
-impl PartRange2 {
-    /// Intsersects two part ranges and returns
-    /// (intserection, self_remainder, other_remainder)
-    /// so that:
-    ///
-    /// 1. `intersection` is the subset of both self and other.
-    /// 2. `self_remainder` is a subset of `self`.
-    /// 3. `other_remainder` is a subset of `other`.
-    /// 4. All three PartRanges are non-overlapping.
-    /// 5. The union of the PartRanges equals the union of `self` and `other`.
-    fn intersect(&self, other: &Self) -> (Self, Self, Self) {
-        todo!()
-    }
-
-    /// Finds the union of these two part ranges
-    fn union(&self, other: &Self) -> Self {
-        todo!()
-    }
-
-    /// Returns true if this PartRange is empty
-    fn empty(&self) -> bool {
-        todo!()
-    }
-}
-
-//// Solve 19a
-//let sol_19a: usize = 12;
-//let correct_sol_19a: usize = 32;
-//println!("* 19a *");
-//println!("My solution: {sol_19a}");
-//println!("Correct solution: {correct_sol_19a}");
-//println!("Equal: {}\n", sol_19a == correct_sol_19a);
-//
-//// Solve 19b
-//let sol_19b: usize = 56;
-//let correct_sol_19b: usize = 79;
-//println!("* 19b *");
-//println!("My solution: {sol_19b}");
-//println!("Correct solution: {correct_sol_19b}");
-//
-//println!("Equal: {}\n", sol_19b == correct_sol_19b);
