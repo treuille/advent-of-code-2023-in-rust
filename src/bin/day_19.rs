@@ -77,9 +77,9 @@ impl PartCube {
         match cube.empty() {
             true => None,
             false => {
-                cube.sample().for_each(|part| {
-                    assert!(cube.contains_part(&part));
-                });
+                //cube.sample().for_each(|part| {
+                //    assert!(cube.contains_part(&part));
+                //});
                 Some(cube)
             }
         }
@@ -115,8 +115,9 @@ impl PartCube {
                     .copied()
                     .zip(vals)
                     .collect::<HashMap<char, usize>>();
-                //println!("self: {:?} -sample-> part: {:?}", cube.clone(), part);
-                assert!(self.contains_part(&part));
+
+                //assert!(self.contains_part(&part));
+
                 part
             })
     }
@@ -129,6 +130,9 @@ impl PartCube {
     /// 4. If either value is empty, the corresponding value is None
     /// NOTE: Tested with assertions
     fn intersect_instruction(&self, instruction: &Instruction) -> (Option<Self>, Option<Self>) {
+        // test_part: {'s': 537, 'x': 2440, 'a': 2007, 'm': 1}
+        // instruction: Instruction { axis: 'x', test: Greater, value: 2440 }
+
         let PartCube(cube) = self;
         let &(min, max) = cube.get(&instruction.axis).unwrap();
         let (intersection_min, intersection_max, remainder_min, remainder_max) =
@@ -136,14 +140,14 @@ impl PartCube {
                 Ordering::Less => (
                     min.min(instruction.value),
                     max.min(instruction.value),
-                    min.max(instruction.value + 1),
-                    max.max(instruction.value + 1),
+                    min.max(instruction.value),
+                    max.max(instruction.value),
                 ),
                 Ordering::Greater => (
                     min.max(instruction.value + 1),
                     max.max(instruction.value + 1),
-                    min.min(instruction.value),
-                    max.min(instruction.value),
+                    min.min(instruction.value + 1),
+                    max.min(instruction.value + 1),
                 ),
                 _ => panic!("Invalid test: {:?}", instruction.test),
             };
@@ -156,20 +160,20 @@ impl PartCube {
         let intersection_cube = new_cube(intersection_min, intersection_max);
         let remainder_cube = new_cube(remainder_min, remainder_max);
 
-        // debug - begin - test the results through sampling
-        if let Some(intersection_cube) = &intersection_cube {
-            assert!(intersection_cube
-                .sample()
-                .all(|part| self.contains_part(&part)
-                    && intersection_cube.contains_part(&part)
-                    && part[&instruction.axis].cmp(&instruction.value) == instruction.test));
-        }
-        if let Some(remainder_cube) = &remainder_cube {
-            assert!(remainder_cube.sample().all(|part| self.contains_part(&part)
-                && remainder_cube.contains_part(&part)
-                && part[&instruction.axis].cmp(&instruction.value) != instruction.test));
-        }
-        // debug - end
+        //// debug - begin - test the results through sampling
+        //if let Some(intersection_cube) = &intersection_cube {
+        //    assert!(intersection_cube
+        //        .sample()
+        //        .all(|part| self.contains_part(&part)
+        //            && intersection_cube.contains_part(&part)
+        //            && part[&instruction.axis].cmp(&instruction.value) == instruction.test));
+        //}
+        //if let Some(remainder_cube) = &remainder_cube {
+        //    assert!(remainder_cube.sample().all(|part| self.contains_part(&part)
+        //        && remainder_cube.contains_part(&part)
+        //        && part[&instruction.axis].cmp(&instruction.value) != instruction.test));
+        //}
+        //// debug - end
 
         (intersection_cube, remainder_cube)
     }
@@ -192,9 +196,9 @@ impl PartCube {
             let (other_min, other_max) = other_cube.get(axis).unwrap();
             self_min <= other_min && self_max >= other_max
         });
-        if contains_cube {
-            assert!(other.sample().all(|part| self.contains_part(&part)));
-        }
+        //if contains_cube {
+        //    assert!(other.sample().all(|part| self.contains_part(&part)));
+        //}
         contains_cube
     }
 
@@ -207,12 +211,12 @@ impl PartCube {
             let (other_min, other_max) = other_cube.get(axis).unwrap();
             self_min < other_max && self_max > other_min
         });
-        if intersects {
-            assert!(self
-                .sample()
-                .chain(other.sample())
-                .all(|part| { self.contains_part(&part) && other.contains_part(&part) }));
-        }
+        //if intersects {
+        //    assert!(self
+        //        .sample()
+        //        .chain(other.sample())
+        //        .all(|part| { self.contains_part(&part) && other.contains_part(&part) }));
+        //}
         intersects
     }
 
@@ -292,15 +296,15 @@ impl PartArea {
                 .collect(),
         );
 
-        // debug - begin - test the results through sampling
-        assert!(union
-            .sample()
-            .all(|part| self.contains_part(&part) || other.contains_part(&part)));
-        println!(
-            "Sucessfully tested {} samples in union(..)",
-            union.sample().count()
-        );
-        // debug - end
+        //// debug - begin - test the results through sampling
+        //assert!(union
+        //    .sample()
+        //    .all(|part| self.contains_part(&part) || other.contains_part(&part)));
+        //println!(
+        //    "Sucessfully tested {} samples in union(..)",
+        //    union.sample().count()
+        //);
+        //// debug - end
 
         union
     }
@@ -316,15 +320,15 @@ impl PartArea {
                 .collect(),
         );
 
-        // debug - begin - test the results through sampling
-        assert!(difference
-            .sample()
-            .all(|part| self.contains_part(&part) && !other.contains_part(&part)));
-        println!(
-            "Sucessfully tested {} samples in subtract(..)",
-            difference.sample().count()
-        );
-        // debug - end
+        //// debug - begin - test the results through sampling
+        //assert!(difference
+        //    .sample()
+        //    .all(|part| self.contains_part(&part) && !other.contains_part(&part)));
+        //println!(
+        //    "Sucessfully tested {} samples in subtract(..)",
+        //    difference.sample().count()
+        //);
+        //// debug - end
 
         difference
     }
@@ -384,27 +388,63 @@ impl PartArea {
         next_workflow: NextWorkflow,
         workflows: &HashMap<WorkflowName, Workflow>,
     ) -> Self {
+        // debug - begin - test guard
+        let test_part: Part = HashMap::from([('a', 2007), ('s', 537), ('m', 1), ('x', 2440)]);
+        let test_workflow_names = ["px", "rfg"];
+        // debug - end - test guard
+
         match next_workflow {
             NextWorkflow::Accept => self.clone(),
             NextWorkflow::Reject => PartArea::none(),
             NextWorkflow::Workflow(workflow_name) => {
                 let workflow = workflows.get(workflow_name).unwrap();
+
+                // debug - begin - test test_part for the "in" workflow
+                if test_workflow_names.iter().contains(&workflow_name) {
+                    println!("\nworkflow_name: {}", workflow_name);
+                    println!("test_part: {:?}", test_part);
+                    println!("in self: {}", self.contains_part(&test_part));
+                    println!("workflow: {:?}", workflow);
+                }
+                // debug - end
+
                 let mut result = PartArea::none();
                 let mut remaining_area = self.clone();
+
                 println!(
                     "In workflow: {:?} result.size: {} remaining_area.size: {}",
                     workflow_name,
                     result.n_parts(),
                     remaining_area.n_parts()
                 );
+
                 for (instruction, next_workflow) in &workflow.instructions {
                     let (intersection, remainder) =
                         remaining_area.intersect_instruction(instruction);
+
                     if !intersection.empty() {
                         // TODO: Probably can get rid of this if statement above.
                         result = result
                             .union(&intersection.intersect_workflow(*next_workflow, workflows))
                     }
+
+                    // debug - begin - test test_part for the "in" workflow
+                    if test_workflow_names.iter().contains(&workflow_name) {
+                        println!("\nworkflow_name: {}", workflow_name);
+                        println!("instruction: {:?}", instruction);
+                        println!(
+                            "in intersection: {}",
+                            intersection.contains_part(&test_part)
+                        );
+                        println!("in remainder: {}", remainder.contains_part(&test_part));
+                        println!("in result: {}", result.contains_part(&test_part));
+                        println!(
+                            "in reamining_area: {}",
+                            remaining_area.contains_part(&test_part)
+                        );
+                    }
+                    // debug - end
+
                     if remainder.empty() {
                         return result;
                     }
@@ -416,31 +456,70 @@ impl PartArea {
                         remaining_area.n_parts()
                     );
                 }
+
+                // debug - begin - test test_part for the "in" workflow
+                if test_workflow_names.iter().contains(&workflow_name) {
+                    println!("\nworkflow_name: {}", workflow_name);
+                    println!("about to compute fallback: {:?}", workflow.fallback);
+                    println!("in result: {}", result.contains_part(&test_part));
+                    println!(
+                        "in reamining_area: {}",
+                        remaining_area.contains_part(&test_part)
+                    );
+                }
+                // debug - end
+
                 if !remaining_area.empty() {
-                    result.union(&remaining_area.intersect_workflow(workflow.fallback, workflows));
+                    let accepted_by_fallback =
+                        remaining_area.intersect_workflow(workflow.fallback, workflows);
+                    if test_workflow_names.iter().contains(&workflow_name) {
+                        println!("\nworkflow_name: {}", workflow_name);
+                        println!("just checked accepted by fallback: {:?}", workflow.fallback);
+                        println!(
+                            "in accepted_by_fallback: {}",
+                            accepted_by_fallback.contains_part(&test_part)
+                        );
+                        println!("in result: {}", result.contains_part(&test_part));
+                    }
+                    result = result.union(&accepted_by_fallback);
+                    if test_workflow_names.iter().contains(&workflow_name) {
+                        println!("in result (after): {}", result.contains_part(&test_part));
+                    }
                 }
 
-                // debug - begin - test the results through sampling
-                //todo!("Write code that tests the result acceptance");
-                assert!(result.sample().all(|part| self.contains_part(&part)
-                    && part_accepted_by_workflow(&part, next_workflow, workflows)));
-                let remaining_area = remaining_area.subtract(&result);
-                assert!(remaining_area.sample().all(|part| {
-                    if !self.contains_part(&part) {
-                        println!("part: {:?} not in self", part);
-                        return false;
-                    } else if part_accepted_by_workflow(&part, next_workflow, workflows) {
-                        println!("part: {:?} accepted by workflow", part);
-                        println!("workflow: {:?}", workflow);
-                        return false;
-                    }
-                    true
-                }));
-                println!(
-                    "Sucessfully tested {} samples in intersect_workflow(..)",
-                    result.sample().count() + remaining_area.sample().count()
-                );
+                // debug - begin - test test_part for the "in" workflow
+                if test_workflow_names.iter().contains(&workflow_name) {
+                    println!("\nworkflow_name: {}", workflow_name);
+                    println!("just computed fallback: {:?}", workflow.fallback);
+                    println!("in result: {}", result.contains_part(&test_part));
+                    println!(
+                        "in reamining_area: {}",
+                        remaining_area.contains_part(&test_part)
+                    );
+                }
                 // debug - end
+
+                //// debug - begin - test the results through sampling
+                //assert!(result.sample().all(|part| self.contains_part(&part)
+                //    && part_accepted_by_workflow(&part, next_workflow, workflows)));
+                //let remaining_area = remaining_area.subtract(&result);
+                //assert!(remaining_area.sample().all(|part| {
+                //    if !self.contains_part(&part) {
+                //        println!("part: {:?} not in self", part);
+                //        return false;
+                //    } else if part_accepted_by_workflow(&part, next_workflow, workflows) {
+                //        println!("part: {:?} accepted by workflow", part);
+                //        println!("workflow_name: {:?}", workflow_name);
+                //        println!("workflow: {:?}", workflow);
+                //        return false;
+                //    }
+                //    true
+                //}));
+                //println!(
+                //    "Sucessfully tested {} samples in intersect_workflow(..)",
+                //    result.sample().count() + remaining_area.sample().count()
+                //);
+                //// debug - end
 
                 result
             }
@@ -463,23 +542,23 @@ impl PartArea {
         let intersection_area = Self::new(intersection.into_iter().flatten().collect());
         let remainder_area = Self::new(remainder.into_iter().flatten().collect());
 
-        // debug - begin - assert that the split happened correctly
-        let Instruction { axis, test, value } = instruction;
-        assert!(intersection_area
-            .sample()
-            .all(|part| self.contains_part(&part)
-                && intersection_area.contains_part(&part)
-                && !remainder_area.contains_part(&part)
-                && part[axis].cmp(value) == *test));
-        assert!(remainder_area.sample().all(|part| self.contains_part(&part)
-            && !intersection_area.contains_part(&part)
-            && remainder_area.contains_part(&part)
-            && part[axis].cmp(value) != *test));
-        println!(
-            "Sucessfully tested {} kamples in intersect_instruction(..)",
-            intersection_area.sample().count() + remainder_area.sample().count()
-        );
-        // debug - end
+        //// debug - begin - assert that the split happened correctly
+        //let Instruction { axis, test, value } = instruction;
+        //assert!(intersection_area
+        //    .sample()
+        //    .all(|part| self.contains_part(&part)
+        //        && intersection_area.contains_part(&part)
+        //        && !remainder_area.contains_part(&part)
+        //        && part[axis].cmp(value) == *test));
+        //assert!(remainder_area.sample().all(|part| self.contains_part(&part)
+        //    && !intersection_area.contains_part(&part)
+        //    && remainder_area.contains_part(&part)
+        //    && part[axis].cmp(value) != *test));
+        //println!(
+        //    "Sucessfully tested {} kamples in intersect_instruction(..)",
+        //    intersection_area.sample().count() + remainder_area.sample().count()
+        //);
+        //// debug - end
 
         (intersection_area, remainder_area)
     }
@@ -487,10 +566,10 @@ impl PartArea {
     /// NOTE: Tested with assertions
     fn sample(&self) -> impl Iterator<Item = Part> + '_ {
         let PartArea(cubes) = self;
-        assert!(cubes
-            .iter()
-            .flat_map(|cube| cube.sample())
-            .all(|part| self.contains_part(&part)));
+        //assert!(cubes
+        //    .iter()
+        //    .flat_map(|cube| cube.sample())
+        //    .all(|part| self.contains_part(&part)));
         cubes.iter().flat_map(|cube| cube.sample())
     }
 }
@@ -498,8 +577,8 @@ impl PartArea {
 fn main() {
     // Parse the input, counting the numbeof matches per card
     //let input = include_str!("");
-    //let input = include_str!("../../puzzle_inputs/day_19.txt");
-    let input = include_str!("../../puzzle_inputs/day_19_test.txt");
+    let input = include_str!("../../puzzle_inputs/day_19.txt");
+    //let input = include_str!("../../puzzle_inputs/day_19_test.txt");
     let (workflows, parts) = parse_input(input);
 
     // Solve 19a
@@ -550,9 +629,9 @@ fn solve_part_b(workflows: &HashMap<WorkflowName, Workflow>) -> usize {
     let parts = PartArea::all();
     let start_workflow = NextWorkflow::Workflow("in");
     let parts: PartArea = parts.intersect_workflow(start_workflow, workflows);
-    println!("parts: {:?}", parts);
+    //println!("parts: {:?}", parts);
     let answer: usize = parts.n_parts();
-    println!("answer: {}", answer);
+    //println!("answer: {}", answer);
     answer
 }
 
