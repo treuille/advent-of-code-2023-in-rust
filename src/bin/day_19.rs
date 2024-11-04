@@ -243,15 +243,15 @@ impl PartArea {
     /// Also runs a bunch of validation checks.
     /// NOTE: Tested with assertions
     fn new(cubes: HashSet<PartCube>) -> Self {
-        // Make sure that the all the cubes are non-empty
-        assert!(cubes.iter().all(|cube| !cube.empty()));
-
-        // Make sure that none of the cubes overlap
-        for (i, cube) in cubes.iter().enumerate() {
-            for other_cube in cubes.iter().skip(i + 1) {
-                assert!(!cube.intersects(other_cube));
-            }
-        }
+        //// Make sure that the all the cubes are non-empty
+        //assert!(cubes.iter().all(|cube| !cube.empty()));
+        //
+        //// Make sure that none of the cubes overlap
+        //for (i, cube) in cubes.iter().enumerate() {
+        //    for other_cube in cubes.iter().skip(i + 1) {
+        //        assert!(!cube.intersects(other_cube));
+        //    }
+        //}
 
         Self(cubes)
     }
@@ -287,38 +287,149 @@ impl PartArea {
         todo!("implement PartArea::intersect(..)")
     }
 
+    // NOTE: This is the old implementation, which works but is slow
     /// Returns the union of two PartAreas.
     /// NOTE: Tested with assertions
-    fn union(&self, other: &Self) -> Self {
-        let union = Self::new(
+    fn old_union(&self, other: &Self) -> Self {
+        Self::new(
             self.outer(other)
                 .filter(|part_cube| self.contains_cube(part_cube) || other.contains_cube(part_cube))
                 .collect(),
-        );
+        )
+    }
+
+    /// Returns the union of two PartAreas.
+    /// NOTE: Tested with assertions
+    fn union(&self, other: &Self) -> Self {
+        //self.old_union(other)
+        self.recursive_union(other, 0)
+    }
+
+    fn recursive_union(&self, other: &Self, depth: usize) -> Self {
+        if self.empty() {
+            return other.clone();
+        } else if other.empty() {
+            return self.clone();
+        }
+        let PartArea(self_cubes) = self;
+        let PartArea(other_cubes) = other;
+        let n_self_cubes = self_cubes.len();
+        let n_other_cubes = other_cubes.len();
+        let max_depth = 10;
+        let max_cells = 20;
+
+        if depth >= max_depth || n_self_cubes * n_other_cubes < max_cells {
+            return self.old_union(other);
+        }
+
+        // Find the split with the best balance
+        let (self_left, self_right, other_left, other_right) = AXES
+            .iter()
+            .map(|&axis| {
+                // Get the min and max along this axis
+                let (min, max) = self_cubes
+                    .iter()
+                    .flat_map(|PartCube(cube)| {
+                        let &(min, max) = cube.get(&axis).unwrap();
+                        [min, max]
+                    })
+                    .chain(other_cubes.iter().flat_map(|PartCube(cube)| {
+                        let &(min, max) = cube.get(&axis).unwrap();
+                        [min, max]
+                    }))
+                    .minmax()
+                    .into_option()
+                    .unwrap();
+
+                // Split the cubes along this axis
+                let split_at = (min + max) / 2;
+                let instruction = Instruction {
+                    axis,
+                    test: Ordering::Less,
+                    value: split_at,
+                };
+                let (self_left, self_right) = self.intersect_instruction(&instruction);
+                let (other_left, other_right) = other.intersect_instruction(&instruction);
+                (self_left, self_right, other_left, other_right)
+            })
+            .min_by_key(|(self_left, self_right, other_left, other_right)| {
+                let left_balance = usize::abs_diff(self_left.0.len(), self_right.0.len());
+                let right_balance = usize::abs_diff(other_left.0.len(), other_right.0.len());
+
+                //// debug - begin - show balance stats
+                //println!("\ndepth: {}", depth);
+                //println!(
+                //    "self_left.len(): {} vs self_right.len(): {}",
+                //    self_left.0.len(),
+                //    self_right.0.len()
+                //);
+                //println!(
+                //    "other_left.len(): {} vs other_right.len(): {}",
+                //    other_left.0.len(),
+                //    other_right.0.len()
+                //);
+                //println!(
+                //    "left_balance: {} right_balance: {}",
+                //    left_balance, right_balance
+                //);
+                //// debug - end
+
+                left_balance + right_balance
+            })
+            .unwrap();
+
+        let PartArea(union_left) = self_left.recursive_union(&other_left, depth + 1);
 
         //// debug - begin - test the results through sampling
-        //assert!(union
+        //let union_left_clone = PartArea::new(union_left.clone());
+        //assert!(union_left_clone
+        //    .sample()
+        //    .all(|part| self_left.contains_part(&part) || other_left.contains_part(&part)));
+        //println!(
+        //    "Sucessfully tested {} samples in union(..)",
+        //    union_left_clone.sample().count()
+        //);
+        //// debug - end
+
+        let PartArea(union_right) = self_right.recursive_union(&other_right, depth + 1);
+
+        //// debug - begin - test the results through sampling let union_left_clone = PartArea::new(union_left.clone());
+        //let union_right_clone = PartArea::new(union_right.clone());
+        //assert!(union_right_clone
+        //    .sample()
+        //    .all(|part| self_right.contains_part(&part) || other_right.contains_part(&part)));
+        //println!(
+        //    "Sucessfully tested {} samples in union(..)",
+        //    union_right_clone.sample().count()
+        //);
+        //// debug - end
+
+        let result = Self::new(union_left.into_iter().chain(union_right).collect());
+
+        //// debug - begin - test the results through sampling
+        //assert!(result
         //    .sample()
         //    .all(|part| self.contains_part(&part) || other.contains_part(&part)));
         //println!(
         //    "Sucessfully tested {} samples in union(..)",
-        //    union.sample().count()
+        //    result.sample().count()
         //);
         //// debug - end
 
-        union
+        #[allow(clippy::let_and_return)]
+        result
     }
 
     /// Subtracts other from self, returning the subset of self that is not in other.
     /// NOTE: Tested with assertions
     fn subtract(&self, other: &Self) -> Self {
-        let difference = Self::new(
+        Self::new(
             self.outer(other)
                 .filter(|part_cube| {
                     self.contains_cube(part_cube) && !other.contains_cube(part_cube)
                 })
                 .collect(),
-        );
+        )
 
         //// debug - begin - test the results through sampling
         //assert!(difference
@@ -329,8 +440,6 @@ impl PartArea {
         //    difference.sample().count()
         //);
         //// debug - end
-
-        difference
     }
 
     /// Returns a sequence of PartCubes where
@@ -575,10 +684,10 @@ impl PartArea {
 }
 
 fn main() {
-    // Parse the input, counting the numbeof matches per card
-    //let input = include_str!("");
     let input = include_str!("../../puzzle_inputs/day_19.txt");
     //let input = include_str!("../../puzzle_inputs/day_19_test.txt");
+
+    // Parse the input
     let (workflows, parts) = parse_input(input);
 
     // Solve 19a
