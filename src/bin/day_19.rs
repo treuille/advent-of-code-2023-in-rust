@@ -476,10 +476,10 @@ impl PartArea {
             })
     }
 
-    fn contains_part(&self, part: &Part) -> bool {
-        let PartArea(cubes) = self;
-        cubes.iter().any(|cube| cube.contains_part(part))
-    }
+    //fn contains_part(&self, part: &Part) -> bool {
+    //    let PartArea(cubes) = self;
+    //    cubes.iter().any(|cube| cube.contains_part(part))
+    //}
 
     fn contains_cube(&self, part_cube: &PartCube) -> bool {
         let PartArea(cubes) = self;
@@ -497,10 +497,10 @@ impl PartArea {
         next_workflow: NextWorkflow,
         workflows: &HashMap<WorkflowName, Workflow>,
     ) -> Self {
-        // debug - begin - test guard
-        let test_part: Part = HashMap::from([('a', 2007), ('s', 537), ('m', 1), ('x', 2440)]);
-        let test_workflow_names = ["px", "rfg"];
-        // debug - end - test guard
+        //// debug - begin - test guard
+        //let test_part: Part = HashMap::from([('a', 2007), ('s', 537), ('m', 1), ('x', 2440)]);
+        //let test_workflow_names = ["px", "rfg"];
+        //// debug - end - test guard
 
         match next_workflow {
             NextWorkflow::Accept => self.clone(),
@@ -508,14 +508,14 @@ impl PartArea {
             NextWorkflow::Workflow(workflow_name) => {
                 let workflow = workflows.get(workflow_name).unwrap();
 
-                // debug - begin - test test_part for the "in" workflow
-                if test_workflow_names.iter().contains(&workflow_name) {
-                    println!("\nworkflow_name: {}", workflow_name);
-                    println!("test_part: {:?}", test_part);
-                    println!("in self: {}", self.contains_part(&test_part));
-                    println!("workflow: {:?}", workflow);
-                }
-                // debug - end
+                //// debug - begin - test test_part for the "in" workflow
+                //if test_workflow_names.iter().contains(&workflow_name) {
+                //    println!("\nworkflow_name: {}", workflow_name);
+                //    println!("test_part: {:?}", test_part);
+                //    println!("in self: {}", self.contains_part(&test_part));
+                //    println!("workflow: {:?}", workflow);
+                //}
+                //// debug - end
 
                 let mut result = PartArea::none();
                 let mut remaining_area = self.clone();
@@ -537,22 +537,22 @@ impl PartArea {
                             .union(&intersection.intersect_workflow(*next_workflow, workflows))
                     }
 
-                    // debug - begin - test test_part for the "in" workflow
-                    if test_workflow_names.iter().contains(&workflow_name) {
-                        println!("\nworkflow_name: {}", workflow_name);
-                        println!("instruction: {:?}", instruction);
-                        println!(
-                            "in intersection: {}",
-                            intersection.contains_part(&test_part)
-                        );
-                        println!("in remainder: {}", remainder.contains_part(&test_part));
-                        println!("in result: {}", result.contains_part(&test_part));
-                        println!(
-                            "in reamining_area: {}",
-                            remaining_area.contains_part(&test_part)
-                        );
-                    }
-                    // debug - end
+                    //// debug - begin - test test_part for the "in" workflow
+                    //if test_workflow_names.iter().contains(&workflow_name) {
+                    //    println!("\nworkflow_name: {}", workflow_name);
+                    //    println!("instruction: {:?}", instruction);
+                    //    println!(
+                    //        "in intersection: {}",
+                    //        intersection.contains_part(&test_part)
+                    //    );
+                    //    println!("in remainder: {}", remainder.contains_part(&test_part));
+                    //    println!("in result: {}", result.contains_part(&test_part));
+                    //    println!(
+                    //        "in reamining_area: {}",
+                    //        remaining_area.contains_part(&test_part)
+                    //    );
+                    //}
+                    //// debug - end
 
                     if remainder.empty() {
                         return result;
@@ -566,47 +566,54 @@ impl PartArea {
                     );
                 }
 
-                // debug - begin - test test_part for the "in" workflow
-                if test_workflow_names.iter().contains(&workflow_name) {
-                    println!("\nworkflow_name: {}", workflow_name);
-                    println!("about to compute fallback: {:?}", workflow.fallback);
-                    println!("in result: {}", result.contains_part(&test_part));
-                    println!(
-                        "in reamining_area: {}",
-                        remaining_area.contains_part(&test_part)
-                    );
-                }
-                // debug - end
+                //// debug - begin - test test_part for the "in" workflow
+                //if test_workflow_names.iter().contains(&workflow_name) {
+                //    println!("\nworkflow_name: {}", workflow_name);
+                //    println!("about to compute fallback: {:?}", workflow.fallback);
+                //    println!("in result: {}", result.contains_part(&test_part));
+                //    println!(
+                //        "in reamining_area: {}",
+                //        remaining_area.contains_part(&test_part)
+                //    );
+                //}
+                //// debug - end
 
                 if !remaining_area.empty() {
                     let accepted_by_fallback =
                         remaining_area.intersect_workflow(workflow.fallback, workflows);
-                    if test_workflow_names.iter().contains(&workflow_name) {
-                        println!("\nworkflow_name: {}", workflow_name);
-                        println!("just checked accepted by fallback: {:?}", workflow.fallback);
-                        println!(
-                            "in accepted_by_fallback: {}",
-                            accepted_by_fallback.contains_part(&test_part)
-                        );
-                        println!("in result: {}", result.contains_part(&test_part));
-                    }
+
+                    //// debug - begin
+                    //if test_workflow_names.iter().contains(&workflow_name) {
+                    //    println!("\nworkflow_name: {}", workflow_name);
+                    //    println!("just checked accepted by fallback: {:?}", workflow.fallback);
+                    //    println!(
+                    //        "in accepted_by_fallback: {}",
+                    //        accepted_by_fallback.contains_part(&test_part)
+                    //    );
+                    //    println!("in result: {}", result.contains_part(&test_part));
+                    //}
+                    //// debug - end
+
                     result = result.union(&accepted_by_fallback);
-                    if test_workflow_names.iter().contains(&workflow_name) {
-                        println!("in result (after): {}", result.contains_part(&test_part));
-                    }
+
+                    //// debug - begin
+                    //if test_workflow_names.iter().contains(&workflow_name) {
+                    //    println!("in result (after): {}", result.contains_part(&test_part));
+                    //}
+                    // debug - end
                 }
 
-                // debug - begin - test test_part for the "in" workflow
-                if test_workflow_names.iter().contains(&workflow_name) {
-                    println!("\nworkflow_name: {}", workflow_name);
-                    println!("just computed fallback: {:?}", workflow.fallback);
-                    println!("in result: {}", result.contains_part(&test_part));
-                    println!(
-                        "in reamining_area: {}",
-                        remaining_area.contains_part(&test_part)
-                    );
-                }
-                // debug - end
+                //// debug - begin - test test_part for the "in" workflow
+                //if test_workflow_names.iter().contains(&workflow_name) {
+                //    println!("\nworkflow_name: {}", workflow_name);
+                //    println!("just computed fallback: {:?}", workflow.fallback);
+                //    println!("in result: {}", result.contains_part(&test_part));
+                //    println!(
+                //        "in reamining_area: {}",
+                //        remaining_area.contains_part(&test_part)
+                //    );
+                //}
+                //// debug - end
 
                 //// debug - begin - test the results through sampling
                 //assert!(result.sample().all(|part| self.contains_part(&part)
