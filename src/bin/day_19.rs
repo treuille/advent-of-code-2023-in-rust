@@ -520,12 +520,12 @@ impl PartArea {
                 let mut result = PartArea::none();
                 let mut remaining_area = self.clone();
 
-                println!(
-                    "In workflow: {:?} result.size: {} remaining_area.size: {}",
-                    workflow_name,
-                    result.n_parts(),
-                    remaining_area.n_parts()
-                );
+                //println!(
+                //    "In workflow: {:?} result.size: {} remaining_area.size: {}",
+                //    workflow_name,
+                //    result.n_parts(),
+                //    remaining_area.n_parts()
+                //);
 
                 for (instruction, next_workflow) in &workflow.instructions {
                     let (intersection, remainder) =
@@ -558,12 +558,12 @@ impl PartArea {
                         return result;
                     }
                     remaining_area = remainder;
-                    println!(
-                        "In workflow: {:?} result.size: {} remaining_area.size: {}",
-                        workflow_name,
-                        result.n_parts(),
-                        remaining_area.n_parts()
-                    );
+                    //println!(
+                    //    "In workflow: {:?} result.size: {} remaining_area.size: {}",
+                    //    workflow_name,
+                    //    result.n_parts(),
+                    //    remaining_area.n_parts()
+                    //);
                 }
 
                 //// debug - begin - test test_part for the "in" workflow
@@ -691,8 +691,8 @@ impl PartArea {
 }
 
 fn main() {
-    let input = include_str!("../../puzzle_inputs/day_19.txt");
-    //let input = include_str!("../../puzzle_inputs/day_19_test.txt");
+    //let input = include_str!("../../puzzle_inputs/day_19.txt");
+    let input = include_str!("../../puzzle_inputs/day_19_test.txt");
 
     // Parse the input
     let (workflows, parts) = parse_input(input);
