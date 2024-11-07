@@ -30,19 +30,25 @@ impl<'a> FromStr<'a> for &'a str {
     }
 }
 
-impl FromStr<'_> for i8 {
-    fn from_str(s: &'_ str) -> Self {
-        s.parse().unwrap()
-    }
-}
-
 impl FromStr<'_> for u8 {
     fn from_str(s: &'_ str) -> Self {
         s.parse().unwrap()
     }
 }
 
-impl FromStr<'_> for i32 {
+impl FromStr<'_> for i8 {
+    fn from_str(s: &'_ str) -> Self {
+        s.parse().unwrap()
+    }
+}
+
+impl FromStr<'_> for u16 {
+    fn from_str(s: &'_ str) -> Self {
+        s.parse().unwrap()
+    }
+}
+
+impl FromStr<'_> for i16 {
     fn from_str(s: &'_ str) -> Self {
         s.parse().unwrap()
     }
@@ -54,7 +60,7 @@ impl FromStr<'_> for u32 {
     }
 }
 
-impl FromStr<'_> for i64 {
+impl FromStr<'_> for i32 {
     fn from_str(s: &'_ str) -> Self {
         s.parse().unwrap()
     }
@@ -66,13 +72,19 @@ impl FromStr<'_> for u64 {
     }
 }
 
-impl FromStr<'_> for isize {
+impl FromStr<'_> for i64 {
     fn from_str(s: &'_ str) -> Self {
         s.parse().unwrap()
     }
 }
 
 impl FromStr<'_> for usize {
+    fn from_str(s: &'_ str) -> Self {
+        s.parse().unwrap()
+    }
+}
+
+impl FromStr<'_> for isize {
     fn from_str(s: &'_ str) -> Self {
         s.parse().unwrap()
     }
