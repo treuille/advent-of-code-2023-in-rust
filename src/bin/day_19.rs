@@ -6,18 +6,23 @@
 )]
 
 use advent_of_code_2023_in_rust::parse_regex::parse_line;
+use cached::proc_macro::cached;
 use itertools::{iproduct, Itertools};
 use regex::Regex;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::fmt::{write, Debug, Formatter};
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 /// The four characters that can be in a part
 const AXES: [char; 4] = ['a', 's', 'm', 'x'];
 
 type WorkflowName = &'static str;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum NextWorkflow {
     Accept,
     Reject,
@@ -31,6 +36,75 @@ impl NextWorkflow {
             "R" => Self::Reject,
             _ => Self::Workflow(s),
         }
+    }
+
+    /// Returns the full set of all possible parts accepted by this next Workflow.
+    fn accepts(&self, all_workflows: &AllWorkflows) -> Arc<PartArea> {
+        //// debug - begin - test guard
+        //let test_part: Part = HashMap::from([('a', 2007), ('s', 537), ('m', 1), ('x', 2440)]);
+        //let test_workflow_names = ["px", "rfg"];
+        //// debug - end - test guard
+
+        let workflows = &all_workflows.workflows;
+        {
+            let mut cache = all_workflows.cache.borrow_mut();
+            let cached_value = cache.get(self).unwrap();
+            println!("next_workflow: {:?} cache_value: {:?}", self, cached_value);
+            match cached_value {
+                AllWorkflowCacheValue::Solved(area) => return area.clone(),
+                AllWorkflowCacheValue::Solving => {
+                    panic!("Cycle detected in workflow: {:?}", self);
+                }
+                AllWorkflowCacheValue::Unsolved => {
+                    cache.insert(*self, AllWorkflowCacheValue::Solving);
+                }
+            }
+        }
+
+        let part_area: Arc<PartArea> = match self {
+            NextWorkflow::Accept => part_area_all(),
+            NextWorkflow::Reject => part_area_none(),
+            NextWorkflow::Workflow(workflow_name) => {
+                let workflow = workflows.get(workflow_name).unwrap();
+
+                let mut result = part_area_none();
+                let mut remaining_area = part_area_all();
+
+                for (instruction, next_workflow) in &workflow.instructions {
+                    let (intersection, remainder) =
+                        remaining_area.intersect_instruction(instruction);
+
+                    if !intersection.empty() {
+                        // TODO: Probably can get rid of this if statement above.
+                        result = PartArea::union(
+                            result,
+                            PartArea::intersect_workflow(
+                                intersection.into(),
+                                *next_workflow,
+                                all_workflows,
+                            ),
+                        );
+                    }
+
+                    if remainder.empty() {
+                        break;
+                    }
+                    remaining_area = remainder.into();
+                }
+
+                if !remaining_area.empty() {
+                    let accepted_by_fallback =
+                        remaining_area.intersect_workflow(workflow.fallback, all_workflows);
+                    result = PartArea::union(result, accepted_by_fallback);
+                }
+                result
+            }
+        };
+
+        let mut cache = all_workflows.cache.borrow_mut();
+        assert_eq!(cache.get(self), Some(&AllWorkflowCacheValue::Solving));
+        cache.insert(*self, AllWorkflowCacheValue::Solved(part_area.clone()));
+        part_area
     }
 }
 
@@ -59,6 +133,45 @@ impl Workflow {
     }
 }
 
+#[derive(PartialEq, Eq)]
+enum AllWorkflowCacheValue {
+    Unsolved,
+    Solving,
+    Solved(Arc<PartArea>),
+}
+
+impl Debug for AllWorkflowCacheValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            AllWorkflowCacheValue::Unsolved => write!(f, "Unsolved"),
+            AllWorkflowCacheValue::Solving => write!(f, "Solving"),
+            AllWorkflowCacheValue::Solved(part_area) => {
+                write!(f, "Solved({} area)", part_area.n_parts())
+            }
+        }
+    }
+}
+
+/// The set of all workflows.
+struct AllWorkflows {
+    workflows: HashMap<WorkflowName, Workflow>,
+    cache: RefCell<HashMap<NextWorkflow, AllWorkflowCacheValue>>,
+}
+
+impl AllWorkflows {
+    fn new(workflows: HashMap<WorkflowName, Workflow>) -> Self {
+        let all_possible_workflows = workflows
+            .keys()
+            .map(|&name| NextWorkflow::Workflow(name))
+            .chain([NextWorkflow::Accept, NextWorkflow::Reject]);
+        let cache = RefCell::new(
+            all_possible_workflows
+                .map(|next_workflow| (next_workflow, AllWorkflowCacheValue::Unsolved))
+                .collect(),
+        );
+        Self { workflows, cache }
+    }
+}
 type Part = HashMap<char, usize>;
 
 /// A singly hyper-rectangular cube in part space
@@ -237,35 +350,37 @@ impl Hash for PartCube {
     }
 }
 
+/// The full area of the part space
+/// WARNING: Not tested
+#[cached]
+fn part_area_all() -> Arc<PartArea> {
+    Arc::new(PartArea::new(HashSet::from([PartCube::all()])))
+}
+
+/// An empty area of the part space
+/// WARNING: Not tested
+#[cached]
+fn part_area_none() -> Arc<PartArea> {
+    Arc::new(PartArea::new(HashSet::new()))
+}
+
 #[allow(unused_variables)]
 impl PartArea {
     /// Construct a PartArea from a list of PartCubes.
     /// Also runs a bunch of validation checks.
     /// NOTE: Tested with assertions
     fn new(cubes: HashSet<PartCube>) -> Self {
-        //// Make sure that the all the cubes are non-empty
-        //assert!(cubes.iter().all(|cube| !cube.empty()));
-        //
-        //// Make sure that none of the cubes overlap
-        //for (i, cube) in cubes.iter().enumerate() {
-        //    for other_cube in cubes.iter().skip(i + 1) {
-        //        assert!(!cube.intersects(other_cube));
-        //    }
-        //}
+        // Make sure that the all the cubes are non-empty
+        assert!(cubes.iter().all(|cube| !cube.empty()));
+
+        // Make sure that none of the cubes overlap
+        for (i, cube) in cubes.iter().enumerate() {
+            for other_cube in cubes.iter().skip(i + 1) {
+                assert!(!cube.intersects(other_cube));
+            }
+        }
 
         Self(cubes)
-    }
-
-    /// The full area of the part space
-    /// WARNING: Not tested
-    fn all() -> Self {
-        Self::new(HashSet::from([PartCube::all()]))
-    }
-
-    /// An empty area of the part space
-    /// WARNING: Not tested
-    fn none() -> Self {
-        Self::new(HashSet::new())
     }
 
     /// Returns the number of parts in this area.
@@ -283,141 +398,163 @@ impl PartArea {
     /// 3. `other_remainder` is a subset of `other`.
     /// 4. The three piecesw are non-overlapping
     /// 5. The union of the three pieces equals the union of `self` and `other`.
-    fn intersect(&self, other: &Self) -> (Self, Self, Self) {
-        todo!("implement PartArea::intersect(..)")
+    fn intersect(self: Arc<Self>, other: Arc<Self>) -> Arc<Self> {
+        //todo!("implement PartArea::intersect(..)")
+        println!("entered PartArea::intersect(..)");
+        let intersection = if self == part_area_none() || other == part_area_none() {
+            part_area_none()
+        } else if self == part_area_all() {
+            other.clone()
+        } else if other == part_area_all() {
+            self.clone()
+        } else {
+            Self::new(
+                self.outer(&other)
+                    .filter(|part_cube| {
+                        self.contains_cube(part_cube) && other.contains_cube(part_cube)
+                    })
+                    .collect(),
+            )
+            .into()
+        };
+        println!("entered PartArea::intersect(..)");
+        intersection
     }
 
     // NOTE: This is the old implementation, which works but is slow
     /// Returns the union of two PartAreas.
     /// NOTE: Tested with assertions
-    fn old_union(&self, other: &Self) -> Self {
+    fn old_union(self: Arc<Self>, other: Arc<Self>) -> Arc<Self> {
         Self::new(
-            self.outer(other)
+            self.outer(&other)
                 .filter(|part_cube| self.contains_cube(part_cube) || other.contains_cube(part_cube))
                 .collect(),
         )
+        .into()
     }
 
     /// Returns the union of two PartAreas.
     /// NOTE: Tested with assertions
-    fn union(&self, other: &Self) -> Self {
-        //self.old_union(other)
-        self.recursive_union(other, 0)
+    fn union(self: Arc<Self>, other: Arc<Self>) -> Arc<Self> {
+        //fn union(&self, other: &Self) -> Self {
+        PartArea::old_union(self, other)
+        //self.recursive_union(other, 0)
     }
 
     fn recursive_union(&self, other: &Self, depth: usize) -> Self {
-        if self.empty() {
-            return other.clone();
-        } else if other.empty() {
-            return self.clone();
-        }
-        let PartArea(self_cubes) = self;
-        let PartArea(other_cubes) = other;
-        let n_self_cubes = self_cubes.len();
-        let n_other_cubes = other_cubes.len();
-        let max_depth = 10;
-        let max_cells = 20;
-
-        if depth >= max_depth || n_self_cubes * n_other_cubes < max_cells {
-            return self.old_union(other);
-        }
-
-        // Find the split with the best balance
-        let (self_left, self_right, other_left, other_right) = AXES
-            .iter()
-            .map(|&axis| {
-                // Get the min and max along this axis
-                let (min, max) = self_cubes
-                    .iter()
-                    .flat_map(|PartCube(cube)| {
-                        let &(min, max) = cube.get(&axis).unwrap();
-                        [min, max]
-                    })
-                    .chain(other_cubes.iter().flat_map(|PartCube(cube)| {
-                        let &(min, max) = cube.get(&axis).unwrap();
-                        [min, max]
-                    }))
-                    .minmax()
-                    .into_option()
-                    .unwrap();
-
-                // Split the cubes along this axis
-                let split_at = (min + max) / 2;
-                let instruction = Instruction {
-                    axis,
-                    test: Ordering::Less,
-                    value: split_at,
-                };
-                let (self_left, self_right) = self.intersect_instruction(&instruction);
-                let (other_left, other_right) = other.intersect_instruction(&instruction);
-                (self_left, self_right, other_left, other_right)
-            })
-            .min_by_key(|(self_left, self_right, other_left, other_right)| {
-                let left_balance = usize::abs_diff(self_left.0.len(), self_right.0.len());
-                let right_balance = usize::abs_diff(other_left.0.len(), other_right.0.len());
-
-                //// debug - begin - show balance stats
-                //println!("\ndepth: {}", depth);
-                //println!(
-                //    "self_left.len(): {} vs self_right.len(): {}",
-                //    self_left.0.len(),
-                //    self_right.0.len()
-                //);
-                //println!(
-                //    "other_left.len(): {} vs other_right.len(): {}",
-                //    other_left.0.len(),
-                //    other_right.0.len()
-                //);
-                //println!(
-                //    "left_balance: {} right_balance: {}",
-                //    left_balance, right_balance
-                //);
-                //// debug - end
-
-                left_balance + right_balance
-            })
-            .unwrap();
-
-        let PartArea(union_left) = self_left.recursive_union(&other_left, depth + 1);
-
-        //// debug - begin - test the results through sampling
-        //let union_left_clone = PartArea::new(union_left.clone());
-        //assert!(union_left_clone
-        //    .sample()
-        //    .all(|part| self_left.contains_part(&part) || other_left.contains_part(&part)));
-        //println!(
-        //    "Sucessfully tested {} samples in union(..)",
-        //    union_left_clone.sample().count()
-        //);
-        //// debug - end
-
-        let PartArea(union_right) = self_right.recursive_union(&other_right, depth + 1);
-
-        //// debug - begin - test the results through sampling let union_left_clone = PartArea::new(union_left.clone());
-        //let union_right_clone = PartArea::new(union_right.clone());
-        //assert!(union_right_clone
-        //    .sample()
-        //    .all(|part| self_right.contains_part(&part) || other_right.contains_part(&part)));
-        //println!(
-        //    "Sucessfully tested {} samples in union(..)",
-        //    union_right_clone.sample().count()
-        //);
-        //// debug - end
-
-        let result = Self::new(union_left.into_iter().chain(union_right).collect());
-
-        //// debug - begin - test the results through sampling
-        //assert!(result
-        //    .sample()
-        //    .all(|part| self.contains_part(&part) || other.contains_part(&part)));
-        //println!(
-        //    "Sucessfully tested {} samples in union(..)",
-        //    result.sample().count()
-        //);
-        //// debug - end
-
-        #[allow(clippy::let_and_return)]
-        result
+        panic!("implement PartArea::recursive_union(..)");
+        //if self.empty() {
+        //    return other.clone();
+        //} else if other.empty() {
+        //    return self.clone();
+        //}
+        //let PartArea(self_cubes) = self;
+        //let PartArea(other_cubes) = other;
+        //let n_self_cubes = self_cubes.len();
+        //let n_other_cubes = other_cubes.len();
+        //let max_depth = 10;
+        //let max_cells = 20;
+        //
+        //if depth >= max_depth || n_self_cubes * n_other_cubes < max_cells {
+        //    return self.old_union(other);
+        //}
+        //
+        //// Find the split with the best balance
+        //let (self_left, self_right, other_left, other_right) = AXES
+        //    .iter()
+        //    .map(|&axis| {
+        //        // Get the min and max along this axis
+        //        let (min, max) = self_cubes
+        //            .iter()
+        //            .flat_map(|PartCube(cube)| {
+        //                let &(min, max) = cube.get(&axis).unwrap();
+        //                [min, max]
+        //            })
+        //            .chain(other_cubes.iter().flat_map(|PartCube(cube)| {
+        //                let &(min, max) = cube.get(&axis).unwrap();
+        //                [min, max]
+        //            }))
+        //            .minmax()
+        //            .into_option()
+        //            .unwrap();
+        //
+        //        // Split the cubes along this axis
+        //        let split_at = (min + max) / 2;
+        //        let instruction = Instruction {
+        //            axis,
+        //            test: Ordering::Less,
+        //            value: split_at,
+        //        };
+        //        let (self_left, self_right) = self.intersect_instruction(&instruction);
+        //        let (other_left, other_right) = other.intersect_instruction(&instruction);
+        //        (self_left, self_right, other_left, other_right)
+        //    })
+        //    .min_by_key(|(self_left, self_right, other_left, other_right)| {
+        //        let left_balance = usize::abs_diff(self_left.0.len(), self_right.0.len());
+        //        let right_balance = usize::abs_diff(other_left.0.len(), other_right.0.len());
+        //
+        //        //// debug - begin - show balance stats
+        //        //println!("\ndepth: {}", depth);
+        //        //println!(
+        //        //    "self_left.len(): {} vs self_right.len(): {}",
+        //        //    self_left.0.len(),
+        //        //    self_right.0.len()
+        //        //);
+        //        //println!(
+        //        //    "other_left.len(): {} vs other_right.len(): {}",
+        //        //    other_left.0.len(),
+        //        //    other_right.0.len()
+        //        //);
+        //        //println!(
+        //        //    "left_balance: {} right_balance: {}",
+        //        //    left_balance, right_balance
+        //        //);
+        //        //// debug - end
+        //
+        //        left_balance + right_balance
+        //    })
+        //    .unwrap();
+        //
+        //let PartArea(union_left) = self_left.recursive_union(&other_left, depth + 1);
+        //
+        ////// debug - begin - test the results through sampling
+        ////let union_left_clone = PartArea::new(union_left.clone());
+        ////assert!(union_left_clone
+        ////    .sample()
+        ////    .all(|part| self_left.contains_part(&part) || other_left.contains_part(&part)));
+        ////println!(
+        ////    "Sucessfully tested {} samples in union(..)",
+        ////    union_left_clone.sample().count()
+        ////);
+        ////// debug - end
+        //
+        //let PartArea(union_right) = self_right.recursive_union(&other_right, depth + 1);
+        //
+        ////// debug - begin - test the results through sampling let union_left_clone = PartArea::new(union_left.clone());
+        ////let union_right_clone = PartArea::new(union_right.clone());
+        ////assert!(union_right_clone
+        ////    .sample()
+        ////    .all(|part| self_right.contains_part(&part) || other_right.contains_part(&part)));
+        ////println!(
+        ////    "Sucessfully tested {} samples in union(..)",
+        ////    union_right_clone.sample().count()
+        ////);
+        ////// debug - end
+        //
+        //let result = Self::new(union_left.into_iter().chain(union_right).collect());
+        //
+        ////// debug - begin - test the results through sampling
+        ////assert!(result
+        ////    .sample()
+        ////    .all(|part| self.contains_part(&part) || other.contains_part(&part)));
+        ////println!(
+        ////    "Sucessfully tested {} samples in union(..)",
+        ////    result.sample().count()
+        ////);
+        ////// debug - end
+        //
+        //#[allow(clippy::let_and_return)]
+        //result
     }
 
     /// Subtracts other from self, returning the subset of self that is not in other.
@@ -493,153 +630,157 @@ impl PartArea {
 
     /// Returns the subset of &self that would be accepted by the workflow.
     fn intersect_workflow(
-        &self,
+        self: Arc<PartArea>,
         next_workflow: NextWorkflow,
-        workflows: &HashMap<WorkflowName, Workflow>,
-    ) -> Self {
-        //// debug - begin - test guard
-        //let test_part: Part = HashMap::from([('a', 2007), ('s', 537), ('m', 1), ('x', 2440)]);
-        //let test_workflow_names = ["px", "rfg"];
-        //// debug - end - test guard
+        all_workflows: &AllWorkflows,
+    ) -> Arc<Self> {
+        PartArea::intersect(self, next_workflow.accepts(all_workflows))
 
-        match next_workflow {
-            NextWorkflow::Accept => self.clone(),
-            NextWorkflow::Reject => PartArea::none(),
-            NextWorkflow::Workflow(workflow_name) => {
-                let workflow = workflows.get(workflow_name).unwrap();
-
-                //// debug - begin - test test_part for the "in" workflow
-                //if test_workflow_names.iter().contains(&workflow_name) {
-                //    println!("\nworkflow_name: {}", workflow_name);
-                //    println!("test_part: {:?}", test_part);
-                //    println!("in self: {}", self.contains_part(&test_part));
-                //    println!("workflow: {:?}", workflow);
-                //}
-                //// debug - end
-
-                let mut result = PartArea::none();
-                let mut remaining_area = self.clone();
-
-                //println!(
-                //    "In workflow: {:?} result.size: {} remaining_area.size: {}",
-                //    workflow_name,
-                //    result.n_parts(),
-                //    remaining_area.n_parts()
-                //);
-
-                for (instruction, next_workflow) in &workflow.instructions {
-                    let (intersection, remainder) =
-                        remaining_area.intersect_instruction(instruction);
-
-                    if !intersection.empty() {
-                        // TODO: Probably can get rid of this if statement above.
-                        result = result
-                            .union(&intersection.intersect_workflow(*next_workflow, workflows))
-                    }
-
-                    //// debug - begin - test test_part for the "in" workflow
-                    //if test_workflow_names.iter().contains(&workflow_name) {
-                    //    println!("\nworkflow_name: {}", workflow_name);
-                    //    println!("instruction: {:?}", instruction);
-                    //    println!(
-                    //        "in intersection: {}",
-                    //        intersection.contains_part(&test_part)
-                    //    );
-                    //    println!("in remainder: {}", remainder.contains_part(&test_part));
-                    //    println!("in result: {}", result.contains_part(&test_part));
-                    //    println!(
-                    //        "in reamining_area: {}",
-                    //        remaining_area.contains_part(&test_part)
-                    //    );
-                    //}
-                    //// debug - end
-
-                    if remainder.empty() {
-                        return result;
-                    }
-                    remaining_area = remainder;
-                    //println!(
-                    //    "In workflow: {:?} result.size: {} remaining_area.size: {}",
-                    //    workflow_name,
-                    //    result.n_parts(),
-                    //    remaining_area.n_parts()
-                    //);
-                }
-
-                //// debug - begin - test test_part for the "in" workflow
-                //if test_workflow_names.iter().contains(&workflow_name) {
-                //    println!("\nworkflow_name: {}", workflow_name);
-                //    println!("about to compute fallback: {:?}", workflow.fallback);
-                //    println!("in result: {}", result.contains_part(&test_part));
-                //    println!(
-                //        "in reamining_area: {}",
-                //        remaining_area.contains_part(&test_part)
-                //    );
-                //}
-                //// debug - end
-
-                if !remaining_area.empty() {
-                    let accepted_by_fallback =
-                        remaining_area.intersect_workflow(workflow.fallback, workflows);
-
-                    //// debug - begin
-                    //if test_workflow_names.iter().contains(&workflow_name) {
-                    //    println!("\nworkflow_name: {}", workflow_name);
-                    //    println!("just checked accepted by fallback: {:?}", workflow.fallback);
-                    //    println!(
-                    //        "in accepted_by_fallback: {}",
-                    //        accepted_by_fallback.contains_part(&test_part)
-                    //    );
-                    //    println!("in result: {}", result.contains_part(&test_part));
-                    //}
-                    //// debug - end
-
-                    result = result.union(&accepted_by_fallback);
-
-                    //// debug - begin
-                    //if test_workflow_names.iter().contains(&workflow_name) {
-                    //    println!("in result (after): {}", result.contains_part(&test_part));
-                    //}
-                    // debug - end
-                }
-
-                //// debug - begin - test test_part for the "in" workflow
-                //if test_workflow_names.iter().contains(&workflow_name) {
-                //    println!("\nworkflow_name: {}", workflow_name);
-                //    println!("just computed fallback: {:?}", workflow.fallback);
-                //    println!("in result: {}", result.contains_part(&test_part));
-                //    println!(
-                //        "in reamining_area: {}",
-                //        remaining_area.contains_part(&test_part)
-                //    );
-                //}
-                //// debug - end
-
-                //// debug - begin - test the results through sampling
-                //assert!(result.sample().all(|part| self.contains_part(&part)
-                //    && part_accepted_by_workflow(&part, next_workflow, workflows)));
-                //let remaining_area = remaining_area.subtract(&result);
-                //assert!(remaining_area.sample().all(|part| {
-                //    if !self.contains_part(&part) {
-                //        println!("part: {:?} not in self", part);
-                //        return false;
-                //    } else if part_accepted_by_workflow(&part, next_workflow, workflows) {
-                //        println!("part: {:?} accepted by workflow", part);
-                //        println!("workflow_name: {:?}", workflow_name);
-                //        println!("workflow: {:?}", workflow);
-                //        return false;
-                //    }
-                //    true
-                //}));
-                //println!(
-                //    "Sucessfully tested {} samples in intersect_workflow(..)",
-                //    result.sample().count() + remaining_area.sample().count()
-                //);
-                //// debug - end
-
-                result
-            }
-        }
+        ////// debug - begin - test guard
+        ////let test_part: Part = HashMap::from([('a', 2007), ('s', 537), ('m', 1), ('x', 2440)]);
+        ////let test_workflow_names = ["px", "rfg"];
+        ////// debug - end - test guard
+        //
+        //let AllWorkflows(workflows) = all_workflows;
+        //
+        //match next_workflow {
+        //    NextWorkflow::Accept => self.clone(),
+        //    NextWorkflow::Reject => part_area_none(),
+        //    NextWorkflow::Workflow(workflow_name) => {
+        //        let workflow = workflows.get(workflow_name).unwrap();
+        //
+        //        //// debug - begin - test test_part for the "in" workflow
+        //        //if test_workflow_names.iter().contains(&workflow_name) {
+        //        //    println!("\nworkflow_name: {}", workflow_name);
+        //        //    println!("test_part: {:?}", test_part);
+        //        //    println!("in self: {}", self.contains_part(&test_part));
+        //        //    println!("workflow: {:?}", workflow);
+        //        //}
+        //        //// debug - end
+        //
+        //        let mut result = part_area_none();
+        //        let mut remaining_area = self.clone();
+        //
+        //        //println!(
+        //        //    "In workflow: {:?} result.size: {} remaining_area.size: {}",
+        //        //    workflow_name,
+        //        //    result.n_parts(),
+        //        //    remaining_area.n_parts()
+        //        //);
+        //
+        //        for (instruction, next_workflow) in &workflow.instructions {
+        //            let (intersection, remainder) =
+        //                remaining_area.intersect_instruction(instruction);
+        //
+        //            if !intersection.empty() {
+        //                // TODO: Probably can get rid of this if statement above.
+        //                result = result
+        //                    .union(&intersection.intersect_workflow(*next_workflow, all_workflows))
+        //            }
+        //
+        //            //// debug - begin - test test_part for the "in" workflow
+        //            //if test_workflow_names.iter().contains(&workflow_name) {
+        //            //    println!("\nworkflow_name: {}", workflow_name);
+        //            //    println!("instruction: {:?}", instruction);
+        //            //    println!(
+        //            //        "in intersection: {}",
+        //            //        intersection.contains_part(&test_part)
+        //            //    );
+        //            //    println!("in remainder: {}", remainder.contains_part(&test_part));
+        //            //    println!("in result: {}", result.contains_part(&test_part));
+        //            //    println!(
+        //            //        "in reamining_area: {}",
+        //            //        remaining_area.contains_part(&test_part)
+        //            //    );
+        //            //}
+        //            //// debug - end
+        //
+        //            if remainder.empty() {
+        //                return result;
+        //            }
+        //            remaining_area = remainder;
+        //            //println!(
+        //            //    "In workflow: {:?} result.size: {} remaining_area.size: {}",
+        //            //    workflow_name,
+        //            //    result.n_parts(),
+        //            //    remaining_area.n_parts()
+        //            //);
+        //        }
+        //
+        //        //// debug - begin - test test_part for the "in" workflow
+        //        //if test_workflow_names.iter().contains(&workflow_name) {
+        //        //    println!("\nworkflow_name: {}", workflow_name);
+        //        //    println!("about to compute fallback: {:?}", workflow.fallback);
+        //        //    println!("in result: {}", result.contains_part(&test_part));
+        //        //    println!(
+        //        //        "in reamining_area: {}",
+        //        //        remaining_area.contains_part(&test_part)
+        //        //    );
+        //        //}
+        //        //// debug - end
+        //
+        //        if !remaining_area.empty() {
+        //            let accepted_by_fallback =
+        //                remaining_area.intersect_workflow(workflow.fallback, all_workflows);
+        //
+        //            //// debug - begin
+        //            //if test_workflow_names.iter().contains(&workflow_name) {
+        //            //    println!("\nworkflow_name: {}", workflow_name);
+        //            //    println!("just checked accepted by fallback: {:?}", workflow.fallback);
+        //            //    println!(
+        //            //        "in accepted_by_fallback: {}",
+        //            //        accepted_by_fallback.contains_part(&test_part)
+        //            //    );
+        //            //    println!("in result: {}", result.contains_part(&test_part));
+        //            //}
+        //            //// debug - end
+        //
+        //            result = result.union(&accepted_by_fallback);
+        //
+        //            //// debug - begin
+        //            //if test_workflow_names.iter().contains(&workflow_name) {
+        //            //    println!("in result (after): {}", result.contains_part(&test_part));
+        //            //}
+        //            // debug - end
+        //        }
+        //
+        //        //// debug - begin - test test_part for the "in" workflow
+        //        //if test_workflow_names.iter().contains(&workflow_name) {
+        //        //    println!("\nworkflow_name: {}", workflow_name);
+        //        //    println!("just computed fallback: {:?}", workflow.fallback);
+        //        //    println!("in result: {}", result.contains_part(&test_part));
+        //        //    println!(
+        //        //        "in reamining_area: {}",
+        //        //        remaining_area.contains_part(&test_part)
+        //        //    );
+        //        //}
+        //        //// debug - end
+        //
+        //        //// debug - begin - test the results through sampling
+        //        //assert!(result.sample().all(|part| self.contains_part(&part)
+        //        //    && part_accepted_by_workflow(&part, next_workflow, workflows)));
+        //        //let remaining_area = remaining_area.subtract(&result);
+        //        //assert!(remaining_area.sample().all(|part| {
+        //        //    if !self.contains_part(&part) {
+        //        //        println!("part: {:?} not in self", part);
+        //        //        return false;
+        //        //    } else if part_accepted_by_workflow(&part, next_workflow, workflows) {
+        //        //        println!("part: {:?} accepted by workflow", part);
+        //        //        println!("workflow_name: {:?}", workflow_name);
+        //        //        println!("workflow: {:?}", workflow);
+        //        //        return false;
+        //        //    }
+        //        //    true
+        //        //}));
+        //        //println!(
+        //        //    "Sucessfully tested {} samples in intersect_workflow(..)",
+        //        //    result.sample().count() + remaining_area.sample().count()
+        //        //);
+        //        //// debug - end
+        //
+        //        result
+        //}
+        //}
     }
 
     /// Intersects the PartArea with an Instruction, returning
@@ -717,8 +858,10 @@ fn main() {
 fn part_accepted_by_workflow(
     part: &Part,
     mut workflow: NextWorkflow,
-    workflows: &HashMap<WorkflowName, Workflow>,
+    all_workflows: &AllWorkflows,
 ) -> bool {
+    let workflows = &all_workflows.workflows;
+
     while let NextWorkflow::Workflow(workflow_name) = workflow {
         workflow = workflows.get(workflow_name).unwrap().run(part);
     }
@@ -729,7 +872,7 @@ fn part_accepted_by_workflow(
     }
 }
 
-fn solve_part_a(workflows: &HashMap<WorkflowName, Workflow>, parts: &Vec<Part>) -> usize {
+fn solve_part_a(workflows: &AllWorkflows, parts: &Vec<Part>) -> usize {
     let mut answer: usize = 0;
     let workflow = NextWorkflow::Workflow("in");
     for part in parts {
@@ -741,17 +884,17 @@ fn solve_part_a(workflows: &HashMap<WorkflowName, Workflow>, parts: &Vec<Part>) 
 }
 
 #[allow(unused_variables)]
-fn solve_part_b(workflows: &HashMap<WorkflowName, Workflow>) -> usize {
-    let parts = PartArea::all();
+fn solve_part_b(workflows: &AllWorkflows) -> usize {
+    let parts = part_area_all();
     let start_workflow = NextWorkflow::Workflow("in");
-    let parts: PartArea = parts.intersect_workflow(start_workflow, workflows);
+    let parts: Arc<PartArea> = parts.intersect_workflow(start_workflow, workflows);
     //println!("parts: {:?}", parts);
     let answer: usize = parts.n_parts();
     //println!("answer: {}", answer);
     answer
 }
 
-fn parse_input(input: &'static str) -> (HashMap<WorkflowName, Workflow>, Vec<Part>) {
+fn parse_input(input: &'static str) -> (AllWorkflows, Vec<Part>) {
     let (workflows, parts) = input.split_once("\n\n").unwrap();
 
     // Parse the workflows
@@ -803,5 +946,5 @@ fn parse_input(input: &'static str) -> (HashMap<WorkflowName, Workflow>, Vec<Par
         })
         .collect();
 
-    (workflows, parts)
+    (AllWorkflows::new(workflows), parts)
 }
