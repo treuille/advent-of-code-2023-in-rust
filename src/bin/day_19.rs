@@ -15,10 +15,11 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::{write, Debug, Formatter};
 use std::hash::{Hash, Hasher};
+use std::iter;
 use std::sync::Arc;
 
 /// The four characters that can be in a part
-const AXES: [char; 4] = ['a', 's', 'm', 'x'];
+//const AXES: [char; 4] = ['a', 's', 'm', 'x'];
 
 type WorkflowName = &'static str;
 
@@ -111,9 +112,33 @@ impl NextWorkflow {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum Axis {
+    A = 0,
+    S,
+    M,
+    X,
+}
+
+impl Axis {
+    fn iter() -> impl Iterator<Item = Axis> {
+        [Axis::A, Axis::S, Axis::M, Axis::X].into_iter()
+    }
+
+    fn from_char(c: char) -> Self {
+        match c {
+            'a' => Axis::A,
+            's' => Axis::S,
+            'm' => Axis::M,
+            'x' => Axis::X,
+            _ => panic!("Invalid axis: {}", c),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Instruction {
-    axis: char,
+    axis: Axis,
     test: Ordering,
     value: usize,
 }
@@ -127,7 +152,7 @@ struct Workflow {
 impl Workflow {
     fn run(&self, part: &Part) -> NextWorkflow {
         for (instruction, next_workflow) in &self.instructions {
-            let part_val = part.get(&instruction.axis).unwrap();
+            let part_val = part[instruction.axis as usize];
             if part_val.cmp(&instruction.value) == instruction.test {
                 return *next_workflow;
             }
@@ -175,11 +200,12 @@ impl AllWorkflows {
         Self { workflows, cache }
     }
 }
-type Part = HashMap<char, usize>;
+
+type Part = [usize; 4];
 
 /// A singly hyper-rectangular cube in part space
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct PartCube(HashMap<char, (usize, usize)>);
+struct PartCube([(usize, usize); 4]);
 
 /// A disjoint union of PartCubes
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -188,7 +214,7 @@ struct PartArea(CubeSet);
 impl PartCube {
     /// Constructor. None if the part cube is empty.
     /// NOTE: Tested with assertions
-    fn new(cube: HashMap<char, (usize, usize)>) -> Option<Self> {
+    fn new(cube: [(usize, usize); 4]) -> Option<Self> {
         let cube = Self(cube);
         match cube.empty() {
             true => None,
@@ -204,38 +230,42 @@ impl PartCube {
     /// The full area of the part space
     /// WARNING: Not tested
     fn all() -> Self {
-        Self::new(AXES.iter().map(|&val_char| (val_char, (1, 4001))).collect()).unwrap()
+        //Self::new(AXES.iter().map(|&val_char| (val_char, (1, 4001))).collect()).unwrap()
+        Self::new([(1, 4001); 4]).unwrap()
     }
 
     /// Returns the number of parts in this area.
     /// WARNING: Not tested
     fn n_parts(&self) -> usize {
         let PartCube(cube) = self;
-        cube.values().map(|(min, max)| max - min).product()
+        cube.iter().map(|(min, max)| max - min).product()
     }
 
     /// Sample usage
     /// NOTE: Tested with assertions
+    #[allow(unreachable_code)]
     fn sample(&self) -> impl Iterator<Item = Part> + '_ {
-        assert!(!self.empty());
-        let PartCube(cube) = self;
-        AXES.iter()
-            .map(|&axis| {
-                let &(min, max) = cube.get(&axis).unwrap();
-                [min, (min + max) / 2, max - 1]
-            })
-            .multi_cartesian_product()
-            .map(|vals| {
-                let part = AXES
-                    .iter()
-                    .copied()
-                    .zip(vals)
-                    .collect::<HashMap<char, usize>>();
-
-                //assert!(self.contains_part(&part));
-
-                part
-            })
+        todo!("Need to update sample to work with the new PartCube");
+        iter::empty()
+        //assert!(!self.empty());
+        //let PartCube(cube) = self;
+        //(0..4)
+        //    .map(|axis| {
+        //        let (min, max) = cube[axis];
+        //        [min, (min + max) / 2, max - 1]
+        //    })
+        //    .multi_cartesian_product()
+        //    .map(|vals| {
+        //        let part = AXES
+        //            .iter()
+        //            .copied()
+        //            .zip(vals)
+        //            .collect::<HashMap<char, usize>>();
+        //
+        //        //assert!(self.contains_part(&part));
+        //
+        //        part
+        //    })
     }
 
     /// Intersects the PartCue with an Instruction, returning
@@ -250,7 +280,7 @@ impl PartCube {
         // instruction: Instruction { axis: 'x', test: Greater, value: 2440 }
 
         let PartCube(cube) = self;
-        let &(min, max) = cube.get(&instruction.axis).unwrap();
+        let (min, max) = cube[instruction.axis as usize];
         let (intersection_min, intersection_max, remainder_min, remainder_max) =
             match instruction.test {
                 Ordering::Less => (
@@ -268,8 +298,8 @@ impl PartCube {
                 _ => panic!("Invalid test: {:?}", instruction.test),
             };
         let new_cube = |new_min, new_max| {
-            let mut new_cube = cube.clone();
-            new_cube.insert(instruction.axis, (new_min, new_max));
+            let mut new_cube = *cube;
+            new_cube[instruction.axis as usize] = (new_min, new_max);
             Self::new(new_cube)
         };
 
@@ -297,8 +327,8 @@ impl PartCube {
     /// WARNING: Not tested
     fn contains_part(&self, part: &Part) -> bool {
         let PartCube(cube) = self;
-        cube.iter().all(|(axis, (min, max))| {
-            let part_val = part.get(axis).unwrap();
+        cube.iter().enumerate().all(|(axis, &(min, max))| {
+            let part_val = part[axis];
             min <= part_val && max > part_val
         })
     }
@@ -307,11 +337,16 @@ impl PartCube {
     fn contains_cube(&self, other: &PartCube) -> bool {
         let PartCube(self_cube) = self;
         let PartCube(other_cube) = other;
-        let contains_cube = AXES.iter().all(|axis| {
-            let (self_min, self_max) = self_cube.get(axis).unwrap();
-            let (other_min, other_max) = other_cube.get(axis).unwrap();
-            self_min <= other_min && self_max >= other_max
-        });
+        let contains_cube = self_cube.iter().zip(other_cube.iter()).all(
+            |((self_min, self_max), (other_min, other_max))| {
+                self_min <= other_min && self_max >= other_max
+            },
+        );
+        //let contains_cube = AXES.iter().all(|axis| {
+        //    let (self_min, self_max) = self_cube.get(axis).unwrap();
+        //    let (other_min, other_max) = other_cube.get(axis).unwrap();
+        //    self_min <= other_min && self_max >= other_max
+        //});
         //if contains_cube {
         //    assert!(other.sample().all(|part| self.contains_part(&part)));
         //}
@@ -322,11 +357,16 @@ impl PartCube {
     fn intersects(&self, other: &Self) -> bool {
         let PartCube(self_cube) = self;
         let PartCube(other_cube) = other;
-        let intersects = AXES.iter().all(|axis| {
-            let (self_min, self_max) = self_cube.get(axis).unwrap();
-            let (other_min, other_max) = other_cube.get(axis).unwrap();
-            self_min < other_max && self_max > other_min
-        });
+        let intersects = self_cube.iter().zip(other_cube.iter()).all(
+            |((self_min, self_max), (other_min, other_max))| {
+                self_min < other_max && self_max > other_min
+            },
+        );
+        //let intersects = AXES.iter().all(|axis| {
+        //    let (self_min, self_max) = self_cube.get(axis).unwrap();
+        //    let (other_min, other_max) = other_cube.get(axis).unwrap();
+        //    self_min < other_max && self_max > other_min
+        //});
         //if intersects {
         //    assert!(self
         //        .sample()
@@ -339,19 +379,19 @@ impl PartCube {
     /// WARNING: Not tested
     fn empty(&self) -> bool {
         let PartCube(cube) = self;
-        cube.values().any(|(min, max)| min >= max)
+        cube.iter().any(|(min, max)| min >= max)
     }
 }
 
-impl Hash for PartCube {
-    /// WARNING: Not tested
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let PartCube(cube) = self;
-        for axis in AXES.iter() {
-            cube[axis].hash(state);
-        }
-    }
-}
+//impl Hash for PartCube {
+//    /// WARNING: Not tested
+//    fn hash<H: Hasher>(&self, state: &mut H) {
+//        let PartCube(cube) = self;
+//        for axis in AXES.iter() {
+//            cube[axis].hash(state);
+//        }
+//    }
+//}
 
 /// The full area of the part space
 /// WARNING: Not tested
@@ -513,18 +553,17 @@ impl PartArea {
         }
 
         // Find the split with the best balance
-        let (self_left, self_right, other_left, other_right) = AXES
-            .iter()
-            .map(|&axis| {
+        let (self_left, self_right, other_left, other_right) = Axis::iter()
+            .map(|axis| {
                 // Get the min and max along this axis
                 let mut indices: Vec<usize> = self_cubes
                     .iter()
                     .flat_map(|PartCube(cube)| {
-                        let &(min, max) = cube.get(&axis).unwrap();
+                        let (min, max) = cube[axis as usize];
                         [min, max]
                     })
                     .chain(other_cubes.iter().flat_map(|PartCube(cube)| {
-                        let &(min, max) = cube.get(&axis).unwrap();
+                        let (min, max) = cube[axis as usize];
                         [min, max]
                     }))
                     .collect();
@@ -622,13 +661,13 @@ impl PartArea {
     /// 1. Each part cube is either strictly inside or strictly outside of self and other
     /// 2. The union of the PartCubes is a superset of self and other
     fn outer(&self, other: &Self) -> impl Iterator<Item = PartCube> {
-        AXES.iter()
-            .map(|&axis| {
+        Axis::iter()
+            .map(|axis| {
                 let get_indices = |PartArea(cubes): &PartArea| {
                     cubes
                         .iter()
                         .flat_map(|PartCube(cube): &PartCube| {
-                            let &(min, max) = cube.get(&axis).unwrap();
+                            let (min, max) = cube[axis as usize];
                             [min, max]
                         })
                         .collect::<Vec<usize>>()
@@ -641,15 +680,7 @@ impl PartArea {
                     .tuple_windows()
             })
             .multi_cartesian_product()
-            .map(|ranges| {
-                PartCube::new(HashMap::from([
-                    ('a', ranges[0]),
-                    ('s', ranges[1]),
-                    ('m', ranges[2]),
-                    ('x', ranges[3]),
-                ]))
-                .unwrap()
-            })
+            .map(|ranges| PartCube::new([ranges[0], ranges[1], ranges[2], ranges[3]]).unwrap())
     }
 
     //fn contains_part(&self, part: &Part) -> bool {
@@ -916,7 +947,7 @@ fn solve_part_a(workflows: &AllWorkflows, parts: &Vec<Part>) -> usize {
     let workflow = NextWorkflow::Workflow("in");
     for part in parts {
         if part_accepted_by_workflow(part, workflow, workflows) {
-            answer += part.values().sum::<usize>();
+            answer += part.iter().sum::<usize>();
         }
     }
     answer
@@ -951,6 +982,7 @@ fn parse_input(input: &'static str) -> (AllWorkflows, Vec<Part>) {
                 .map(|instruction| {
                     let (axis, test, value, next_workflow): (char, char, usize, &str) =
                         parse_line(&instruction_regex, instruction);
+                    let axis = Axis::from_char(axis);
                     let test = match test {
                         '<' => Ordering::Less,
                         '>' => Ordering::Greater,
@@ -974,14 +1006,15 @@ fn parse_input(input: &'static str) -> (AllWorkflows, Vec<Part>) {
     let parts: Vec<Part> = parts
         .lines()
         .map(|part| {
-            part[1..part.len() - 1]
+            let part: HashMap<char, usize> = part[1..part.len() - 1]
                 .split(",")
                 .map(|val| {
                     let val_char = val.chars().next().unwrap();
                     let val_num = val[2..].parse::<usize>().unwrap();
                     (val_char, val_num)
                 })
-                .collect()
+                .collect();
+            [part[&'a'], part[&'s'], part[&'m'], part[&'x']]
         })
         .collect();
 
