@@ -9,44 +9,12 @@
 use advent_of_code_2023_in_rust::parse_regex::{parse_line, parse_lines};
 use itertools::Itertools;
 use regex::Regex;
+use std::array;
 use std::collections::{HashMap, HashSet};
+use std::ops::Deref;
 
 /// The descriptor of a workflow
 type Workflow = &'static str;
-
-/// The types of a dimension in the puzzle space
-type Dim = u16;
-
-/// Stores the full tree of rules
-struct Puzzle {}
-
-/// A rule is part of a decision tree that either accepts or rejects parts
-enum Rule {
-    Accept,
-    Reject,
-    Split {
-        axis: Axis,
-        split: Dim,
-        children: [Box<Rule>; 2],
-    },
-}
-
-// Represents a volumne of space in the part lattice [1,4000]^4
-struct Volume {
-    min_max: [(Dim, Dim); 4],
-    contents: Contents,
-}
-
-// A Volume is either empty, full, or split along an axis
-enum Contents {
-    Empty,
-    Full,
-    Split {
-        axis: Axis,
-        split: Dim,
-        children: [Box<Volume>; 2],
-    },
-}
 
 /// We are in a 4-dimensional space with axes labels as follows:
 #[derive(Debug, Copy, Clone)]
@@ -57,12 +25,75 @@ enum Axis {
     S,
 }
 
+/// A position along a dimension
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct Pos(u16);
+
+/// Stores the full tree of rules
+struct Puzzle {
+    /// Ordered list of indices along each axis
+    pos: [Vec<Pos>; 4],
+
+    /// Inverse mapping of indices to their position in the ordered list
+    pos_inv: [HashMap<Pos, usize>; 4],
+
+    /// The root rule of the puzzle
+    rule: Rule,
+}
+
+/// A Part is a point in the 4D lattice [1,4000]^4
+struct Part([Pos; 4]);
+
+/// A rule is part of a decision tree that either accepts or rejects parts
+enum Rule {
+    Accept,
+    Reject,
+    Split {
+        axis: Axis,
+        split: usize,
+        children: [Box<Rule>; 2],
+    },
+}
+
+// Represents a volumne of space in the part lattice [1,4000]^4
+struct Volume {
+    min_max: [(usize, usize); 4],
+    contents: Contents,
+}
+
+// A Volume is either empty, full, or split along an axis
+enum Contents {
+    Empty,
+    Full,
+    Split {
+        axis: Axis,
+        split: usize,
+        children: [Box<Volume>; 2],
+    },
+}
+
 fn main() {
     let input = include_str!("../../puzzle_inputs/day_19.txt");
     //let input = include_str!("../../puzzle_inputs/day_19_test.txt");
+    let (puzzle, parts) = input.split_once("\n\n").unwrap();
+    let puzzle = Puzzle::from_str(puzzle);
 
-    println!("input len: {}", input.len());
-    figure_out_indices(input);
+    // debug - begin
+    println!(
+        "puzzle pos [{} {} {} {}]",
+        puzzle.pos[0].len(),
+        puzzle.pos[1].len(),
+        puzzle.pos[2].len(),
+        puzzle.pos[3].len()
+    );
+    println!(
+        "puzzle inv_pos [{} {} {} {}]",
+        puzzle.pos_inv[0].len(),
+        puzzle.pos_inv[1].len(),
+        puzzle.pos_inv[2].len(),
+        puzzle.pos_inv[3].len()
+    );
+    // debug - end
 
     // Solve 19a
     let sol_19a: usize = solve_part_a();
@@ -89,64 +120,6 @@ fn solve_part_b() -> usize {
     todo!("implement solve_part_b");
 }
 
-fn figure_out_indices(input: &'static str) {
-    let (rules, parts) = input.split_once("\n\n").unwrap();
-    //let rule_regex = Regex::new(r"(\w+)\{((\w\,)+)(\w+)\}").unwrap();
-    //let rule_regex = Regex::new(r"(\w+)\{((\w\,)+)(\w+)").unwrap();
-    println!("first line of rules: {}", rules.lines().next().unwrap());
-    let workflow_regex = Regex::new(r"(\w+)\{(.+)\,(\w+)\}").unwrap();
-    let rule_regex = Regex::new(r"([xmas])([<>])(\d+):(\w+)").unwrap();
-    let rules: HashMap<Workflow, (Vec<(Axis, bool, Dim, Workflow)>, Workflow)> =
-        parse_lines(workflow_regex, rules)
-            .map(
-                |(workflow, rules, fallback_workflow): (Workflow, &'static str, Workflow)| {
-                    println!("workflow: {}", workflow);
-                    println!("rules: {}", rules);
-                    println!("fallback_workflow: {}", fallback_workflow);
-                    let rules = rules
-                        .split(",")
-                        .map(|rule| {
-                            let (axis, order, split, next_workflow): (char, char, Dim, Workflow) =
-                                parse_line(&rule_regex, rule);
-                            let axis = Axis::from_char(axis);
-                            let (reverse_children, split) = match order {
-                                '<' => (false, split),
-                                '>' => (true, split + 1),
-                                _ => panic!("Invalid order: {}", order),
-                            };
-                            println!("axis: {:?}", axis);
-                            println!("reverse_children: {}", reverse_children);
-                            println!("split: {}", split);
-                            println!("next_workflow: {}", next_workflow);
-                            (axis, reverse_children, split, next_workflow)
-                        })
-                        .collect();
-                    println!("rules: {:?}", rules);
-                    (workflow, (rules, fallback_workflow))
-                },
-            )
-            .collect();
-
-    // Pick up all of the indices for each axis
-    let mut indices: [HashSet<Dim>; 4] = Default::default();
-    for (rules, _fallback_workflow) in rules.values() {
-        for (axis, _reverse_children, split, _next_workflow) in rules {
-            indices[*axis as usize].insert(*split);
-        }
-    }
-    for axis in Axis::iter() {
-        println!("axis: {:?}", axis);
-        println!(
-            "indices: {:?}",
-            indices[axis as usize].iter().sorted().collect_vec()
-        );
-    }
-}
-
-impl Puzzle {}
-
-impl Rule {}
-
 /// There are four axes in this puzzle, charmingly named 'x', 'm', 'a', and 's'.
 impl Axis {
     /// Returns an iterator over the axis variants
@@ -165,3 +138,106 @@ impl Axis {
         }
     }
 }
+
+impl Pos {}
+
+impl Deref for Pos {
+    type Target = u16;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Puzzle {
+    fn from_str(input: &'static str) -> Self {
+        //let rule_regex = Regex::new(r"(\w+)\{((\w\,)+)(\w+)\}").unwrap();
+        //let rule_regex = Regex::new(r"(\w+)\{((\w\,)+)(\w+)").unwrap();
+        println!("first line of rules: {}", input.lines().next().unwrap());
+        let workflow_regex = Regex::new(r"(\w+)\{(.+)\,(\w+)\}").unwrap();
+        let rule_regex = Regex::new(r"([xmas])([<>])(\d+):(\w+)").unwrap();
+        let rules: HashMap<Workflow, (Vec<(Axis, bool, Pos, Workflow)>, Workflow)> =
+            parse_lines(workflow_regex, input)
+                .map(
+                    |(workflow, rules, fallback_workflow): (Workflow, &'static str, Workflow)| {
+                        println!("workflow: {}", workflow);
+                        println!("rules: {}", rules);
+                        println!("fallback_workflow: {}", fallback_workflow);
+                        let rules = rules
+                            .split(",")
+                            .map(|rule| {
+                                let (axis, order, split, next_workflow): (
+                                    char,
+                                    char,
+                                    u16,
+                                    Workflow,
+                                ) = parse_line(&rule_regex, rule);
+                                let axis = Axis::from_char(axis);
+                                let (reverse_children, split) = match order {
+                                    '<' => (false, Pos(split)),
+                                    '>' => (true, Pos(split + 1)),
+                                    _ => panic!("Invalid order: {}", order),
+                                };
+                                println!("axis: {:?}", axis);
+                                println!("reverse_children: {}", reverse_children);
+                                println!("split: {:?}", split);
+                                println!("next_workflow: {}", next_workflow);
+                                (axis, reverse_children, split, next_workflow)
+                            })
+                            .collect();
+                        println!("rules: {:?}", rules);
+                        (workflow, (rules, fallback_workflow))
+                    },
+                )
+                .collect();
+
+        // Pick up all of the indices for each axis
+        let mut pos: [HashSet<Pos>; 4] = array::from_fn(|_| [Pos(1), Pos(4001)].into());
+        for (rules, _fallback_workflow) in rules.values() {
+            for (axis, _reverse_children, split, _next_workflow) in rules {
+                pos[*axis as usize].insert(*split);
+            }
+        }
+        let pos: [Vec<Pos>; 4] = pos.map(|set| set.into_iter().sorted().collect());
+        let pos_inv: [HashMap<Pos, usize>; 4] = pos
+            .iter()
+            .map(|vec| {
+                vec.iter()
+                    .enumerate()
+                    .map(|(index, &p)| (p, index))
+                    .collect()
+            })
+            .collect_vec()
+            .try_into()
+            .unwrap();
+
+        println!("pos: {:?}", pos);
+        println!("pos_inv: {:?}", pos_inv);
+
+        // debug - begin assert the that the inverses were computed correctly
+        for axis in Axis::iter() {
+            assert_eq!(pos[axis as usize].len(), pos_inv[axis as usize].len());
+            for (index, &p) in pos[axis as usize].iter().enumerate() {
+                assert_eq!(pos_inv[axis as usize][&p], index);
+            }
+        }
+        // debug - end
+        todo!("Need to construct the puzzle");
+    }
+}
+
+impl Part {}
+
+impl Deref for Part {
+    type Target = [Pos; 4];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Rule {}
+
+impl Volume {}
+
+impl Contents {}
