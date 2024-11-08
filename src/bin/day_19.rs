@@ -537,60 +537,76 @@ impl Volume {
 
     /// Splits ths volume along an axis
     fn split_along(self: &Rc<Self>, split_axis: Axis, split_idx: usize) -> (Rc<Self>, Rc<Self>) {
-        //println!(
-        //    "split_along - split_axis: {:?} split_idx: {:?} bounds: {:?} my_split: {:?}",
-        //    split_axis,
-        //    split_idx,
-        //    self.bounds,
-        //    self.get_split()
-        //);
-        let (min_idx, max_idx) = self.bounds[split_axis as usize];
-        let (vol_a, vol_b): (Rc<Volume>, Rc<Volume>) = if split_idx <= min_idx {
-            (self.empty(), self.clone())
-        } else if split_idx >= max_idx {
-            (self.clone(), self.empty())
-        } else {
-            let (vol_split_axis, vol_split_idx) = self.get_split().unwrap_or_else(|| {
-                        panic!(
-                            "Splitting without children - Case A. split_axis: {:?} split_idx: {:?} bounds: {:?}",
-                            split_axis, split_idx, self.bounds
-                        )
-                    });
-            if split_axis != vol_split_axis {
-                let (child_left, child_right) = self.get_children().unwrap();
-                let (child_left_a, child_left_b) = child_left.split_along(split_axis, split_idx);
-                let (child_right_a, child_right_b) = child_right.split_along(split_axis, split_idx);
-                (
-                    Volume::glue(child_left_a, child_right_a).unwrap(),
-                    Volume::glue(child_left_b, child_right_b).unwrap(),
-                )
-            } else if vol_split_idx < split_idx {
-                assert!(split_axis == vol_split_axis);
-                let (child_left, child_right) = self.get_children().unwrap();
-                let (child_left_a, child_left_b) = child_left.split_along(split_axis, split_idx);
-                (
-                    Volume::glue(child_left_a, child_right.empty()).unwrap(),
-                    Volume::glue(child_left_b, child_right.empty()).unwrap(),
-                )
-            } else if vol_split_idx > split_idx {
-                assert!(split_axis == vol_split_axis);
-                let (child_left, child_right) = self.get_children().unwrap();
-                let (child_right_a, child_right_b) = child_right.split_along(split_axis, split_idx);
-                let (child_left, child_right) = self.get_children().unwrap();
-                (
-                    Volume::glue(child_left.empty(), child_right_a).unwrap(),
-                    Volume::glue(child_left.empty(), child_right_b).unwrap(),
-                )
+        println!(
+            "split_along - split_axis: {:?} split_idx: {:?} bounds: {:?} my_split: {:?}",
+            split_axis,
+            split_idx,
+            self.bounds,
+            self.get_split()
+        );
+        let (vol_a, vol_b): (Rc<Volume>, Rc<Volume>) =
+            if let Some((vol_split_axis, vol_split_idx)) = self.get_split() {
+                let (min_idx, max_idx) = self.bounds[split_axis as usize];
+                if split_axis != vol_split_axis {
+                    let (child_left, child_right) = self.get_children().unwrap();
+                    let (child_left_a, child_left_b) =
+                        child_left.split_along(split_axis, split_idx);
+                    let (child_right_a, child_right_b) =
+                        child_right.split_along(split_axis, split_idx);
+                    (
+                        Volume::glue(child_left_a, child_right_a).unwrap(),
+                        Volume::glue(child_left_b, child_right_b).unwrap(),
+                    )
+                } else if split_idx <= min_idx {
+                    assert!(split_axis == vol_split_axis);
+                    let (child_left, child_right) = self.get_children().unwrap();
+                    let (_, child_left_b) = child_left.split_along(split_axis, split_idx);
+                    let (_, child_right_b) = child_right.split_along(split_axis, split_idx);
+                    (
+                        self.empty(),
+                        Volume::glue(child_left_b, child_right_b).unwrap(),
+                    )
+                } else if split_idx >= max_idx {
+                    assert!(split_axis == vol_split_axis);
+                    let (child_left, child_right) = self.get_children().unwrap();
+                    let (child_left_a, _) = child_left.split_along(split_axis, split_idx);
+                    let (child_right_a, _) = child_right.split_along(split_axis, split_idx);
+                    (
+                        Volume::glue(child_left_a, child_right_a).unwrap(),
+                        self.empty(),
+                    )
+                } else if vol_split_idx < split_idx {
+                    assert!(split_axis == vol_split_axis);
+                    let (child_left, child_right) = self.get_children().unwrap();
+                    let (child_left_a, child_left_b) =
+                        child_left.split_along(split_axis, split_idx);
+                    (
+                        Volume::glue(child_left_a, child_right.empty()).unwrap(),
+                        Volume::glue(child_left_b, child_right.empty()).unwrap(),
+                    )
+                } else if vol_split_idx > split_idx {
+                    assert!(split_axis == vol_split_axis);
+                    let (child_left, child_right) = self.get_children().unwrap();
+                    let (child_right_a, child_right_b) =
+                        child_right.split_along(split_axis, split_idx);
+                    let (child_left, child_right) = self.get_children().unwrap();
+                    (
+                        Volume::glue(child_left.empty(), child_right_a).unwrap(),
+                        Volume::glue(child_left.empty(), child_right_b).unwrap(),
+                    )
+                } else {
+                    assert!(split_axis == vol_split_axis);
+                    assert!(vol_split_idx == split_idx);
+                    let (child_left, child_right) = self.get_children().unwrap();
+                    (
+                        Volume::glue(child_left.clone(), child_right.empty()).unwrap(),
+                        Volume::glue(child_left.empty(), child_right.clone()).unwrap(),
+                    )
+                }
             } else {
-                assert!(split_axis == vol_split_axis);
-                assert!(vol_split_idx == split_idx);
-                let (child_left, child_right) = self.get_children().unwrap();
-                (
-                    Volume::glue(child_left.clone(), child_right.empty()).unwrap(),
-                    Volume::glue(child_left.empty(), child_right.clone()).unwrap(),
-                )
-            }
-        };
+                panic!("This is wrong.. thie logic in this function is all wrong...");
+                (self.clone(), self.clone()
+            };
 
         // debug - being - assert that the bounds make sense
         assert!(vol_a.bounds == self.bounds);
