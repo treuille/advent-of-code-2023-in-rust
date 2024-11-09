@@ -18,14 +18,6 @@ use std::fmt::{Debug, Formatter, Result};
 use std::ops::Deref;
 use std::rc::Rc;
 
-// Solve double intersection bug
-// [x] Implement `Debug` for `Volume`
-// [ ] Intersect the volume with X<2 and look at the result
-// [ ] Intersect the volume with M<2 and look at the result
-// [ ] Intersect the volume with X<2 and M<2 and introspect the resutls
-// [ ] Do the same with X<1 and M<1 and both
-// [ ] Do the same for M and S
-
 /// The descriptor of a workflow
 type Workflow = &'static str;
 
