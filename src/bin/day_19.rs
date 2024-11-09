@@ -4,7 +4,8 @@
     clippy::type_complexity,
     unused_variables,
     unreachable_code,
-    clippy::four_forward_slashes
+    clippy::four_forward_slashes,
+    clippy::let_and_return
 )]
 
 use advent_of_code_2023_in_rust::parse_regex::{parse_line, parse_lines};
@@ -16,6 +17,14 @@ use std::fmt;
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::Deref;
 use std::rc::Rc;
+
+// Solve double intersection bug
+// [x] Implement `Debug` for `Volume`
+// [ ] Intersect the volume with X<2 and look at the result
+// [ ] Intersect the volume with M<2 and look at the result
+// [ ] Intersect the volume with X<2 and M<2 and introspect the resutls
+// [ ] Do the same with X<1 and M<1 and both
+// [ ] Do the same for M and S
 
 /// The descriptor of a workflow
 type Workflow = &'static str;
@@ -79,8 +88,8 @@ enum Contents {
 }
 
 fn main() {
-    //let input = include_str!("../../puzzle_inputs/day_19.txt");
-    let input = include_str!("../../puzzle_inputs/day_19_test.txt");
+    let input = include_str!("../../puzzle_inputs/day_19.txt");
+    //let input = include_str!("../../puzzle_inputs/day_19_test.txt");
     let (puzzle, parts) = input.split_once("\n\n").unwrap();
     let puzzle = Puzzle::from_str(puzzle);
     let parts = Part::from_str(parts);
@@ -119,6 +128,19 @@ fn solve_part_a(puzzle: &Puzzle, parts: &[Part]) -> u64 {
 
 fn solve_part_b(puzzle: &Puzzle) -> usize {
     let vol_full = puzzle.full_volume();
+    println!("vol_full:\n{:?}\n", vol_full);
+
+    //println!("pos: {:?}", puzzle.pos[Axis::S as usize]);
+    //
+    //let [s2_left, s2_right] = Volume::halfspaces(&vol_full.bounds, Axis::S, 1);
+    ////println!("s2_left:\n{:?}\n", s2_left);
+    //println!("s2_left idx_volume: {}", s2_left.idx_volume());
+    ////println!("s2_right:\n{:?}\n", s2_right);
+    //println!("s2_right idx_volume: {}", s2_right.idx_volume());
+    //
+    //let [m2_left, m2_right] = Volume::halfspaces(&vol_full.bounds, Axis::M, 2);
+    //println!("m2_left:\n{:?}\n", m2_left);
+    //println!("m2_right:\n{:?}\n", m2_right);
 
     println!("vol_full");
     println!("- bounds: {:?}", vol_full.bounds);
@@ -284,7 +306,7 @@ impl Puzzle {
     fn measure(&self, vol: &Volume) -> u64 {
         match &vol.contents {
             Contents::Empty => {
-                println!("measure - Empty: {:?}", vol.bounds);
+                //println!("measure - Empty: {:?}", vol.bounds);
                 0
             }
             Contents::Full => {
@@ -296,17 +318,17 @@ impl Puzzle {
                     })
                     .product();
 
-                println!("measure - Full: {} {:?}", volume, vol.bounds);
+                //println!("measure - Full: {} {:?}", volume, vol.bounds);
                 volume
             }
             Contents::Split((vol_a, vol_b)) => {
                 let vol_a = self.measure(vol_a);
                 let vol_b = self.measure(vol_b);
                 let volume = vol_a + vol_b;
-                println!(
-                    "measure - Split: {} + {} = {} {:?}",
-                    vol_a, vol_b, volume, vol.bounds
-                );
+                //println!(
+                //    "measure - Split: {} + {} = {} {:?}",
+                //    vol_a, vol_b, volume, vol.bounds
+                //);
                 volume
             }
         }
@@ -390,8 +412,12 @@ impl Rule {
         let prefix = "  ".repeat(depth);
         println!();
         println!("{}intersect - ENTER - rule: {:?}", prefix, self);
-        println!("{}intersect - ENTER - vol: {}", prefix, vol.idx_volume(),);
-
+        println!(
+            "{}intersect - ENTER - vol: {} nodes: {}",
+            prefix,
+            vol.idx_volume(),
+            vol.nodes()
+        );
         if vol.idx_volume() == 0 {
             assert!(vol.contents == Contents::Empty);
             println!("{}intersect - EXIT - rule: {:?}", prefix, self);
@@ -414,28 +440,30 @@ impl Rule {
             } => {
                 let [half_a, half_b] = Volume::halfspaces(&vol.bounds, *split_axis, *split_idx);
 
-                let vol_half_a = half_a.idx_volume();
-                let vol_half_b = half_b.idx_volume();
+                // debug - begin
+                let half_a_nodes = half_a.nodes();
+                let half_b_nodes = half_b.nodes();
+                // debug - end
 
                 // Intersect the incoming volume with the halfspaces
                 let vol_a = Volume::intersect(vol, &half_a);
                 let vol_b = Volume::intersect(vol, &half_b);
 
                 // debug - begin - make sure that we've split vol porperly
-                let idx_vol = vol.idx_volume();
-                let idx_vol_a = vol_a.idx_volume();
-                let idx_vol_b = vol_b.idx_volume();
+                let vol_nodes = vol.nodes();
+                let vol_a_nodes = vol_a.nodes();
+                let vol_b_nodes = vol_b.nodes();
                 println!(
                     "{}rule split: {} /\\ ({} + {}) => ({} + {}) = {}",
                     prefix,
-                    idx_vol,
-                    vol_half_a,
-                    vol_half_b,
-                    idx_vol_a,
-                    idx_vol_b,
-                    idx_vol_a + idx_vol_b,
+                    vol_nodes,
+                    half_a_nodes,
+                    half_b_nodes,
+                    vol_a_nodes,
+                    vol_b_nodes,
+                    vol_a_nodes + vol_b_nodes,
                 );
-                assert!(idx_vol == idx_vol_a + idx_vol_b);
+                //assert!(vol_nodes == vol_a_nodes + vol_b_nodes);
                 // debug - end
 
                 // Now recurse into the children
@@ -447,9 +475,10 @@ impl Rule {
 
                 println!("{}intersect - EXIT - rule: {:?}", prefix, self);
                 println!(
-                    "{}intersect - EXIT UNION vol: {}",
+                    "{}intersect - EXIT UNION vol: {} nodes: {}",
                     prefix,
-                    result.idx_volume()
+                    result.idx_volume(),
+                    result.nodes()
                 );
                 //println!();
 
@@ -691,6 +720,14 @@ impl Volume {
         }
     }
 
+    /// Computes the number of nodes in this `Volume`
+    fn nodes(&self) -> usize {
+        match &self.contents {
+            Contents::Split((left, right)) => left.nodes() + right.nodes(),
+            _ => 1,
+        }
+    }
+
     /// Splits ths volume along an axis
     //fn split_along(self: &Rc<Self>, split_axis: Axis, split_idx: usize) -> (Rc<Self>, Rc<Self>) {
     //    println!(
@@ -799,14 +836,68 @@ impl Volume {
     }
 
     fn halfspaces(bounds: &Bounds, axis: Axis, split_idx: usize) -> [Rc<Volume>; 2] {
+        if split_idx < bounds[axis as usize].0 {
+            return [Volume::empty(bounds), Volume::full(bounds)];
+        } else if split_idx >= bounds[axis as usize].1 {
+            return [Volume::full(bounds), Volume::empty(bounds)];
+        }
+
         // debug - begin - assert that the split is within the bounds
-        assert!(bounds[axis as usize].0 < split_idx);
-        assert!(split_idx < bounds[axis as usize].1);
+        assert!(
+            bounds[axis as usize].0 < split_idx,
+            "Split index too low - split_idx: {:?} axis: {:?} bounds: {:?}",
+            split_idx,
+            axis,
+            bounds
+        );
+        assert!(
+            split_idx < bounds[axis as usize].1,
+            "Split index too high - {:?} < {:?} bounds: {:?}",
+            axis,
+            split_idx,
+            bounds
+        );
         // debug - end
 
         let (bounds_left, bounds_right) = Volume::get_chidren_bounds(bounds).unwrap();
+
+        //// debug - begin - assert that the split is within the bounds
+        //assert!(
+        //    bounds_left[axis as usize].0 <= split_idx,
+        //    "Split index too low - {:?} < {:?} bounds: {:?} - split LEFT from: {:?}",
+        //    axis,
+        //    split_idx,
+        //    bounds_left,
+        //    bounds
+        //);
+        //assert!(
+        //    split_idx <= bounds_left[axis as usize].1,
+        //    "Split index too high - {:?} < {:?} bounds: {:?} - split LEFT from: {:?}",
+        //    axis,
+        //    split_idx,
+        //    bounds_left,
+        //    bounds
+        //);
+        //assert!(
+        //    bounds_right[axis as usize].0 <= split_idx,
+        //    "Split index too low - {:?} < {:?} bounds: {:?} - split RIGHT from: {:?}",
+        //    axis,
+        //    split_idx,
+        //    bounds_right,
+        //    bounds
+        //);
+        //assert!(
+        //    split_idx <= bounds_right[axis as usize].1,
+        //    "Split index too high - {:?} < {:?} bounds: {:?} - split RIGHT from: {:?}",
+        //    axis,
+        //    split_idx,
+        //    bounds_right,
+        //    bounds
+        //);
+        //// debug - end
+
         let (left_a, right_a, left_b, right_b) =
-            if let Some((axis, split_idx)) = Volume::get_split(bounds) {
+            if Some((axis, split_idx)) == Volume::get_split(bounds) {
                 (
                     Volume::full(&bounds_left),
                     Volume::empty(&bounds_right),
@@ -885,6 +976,36 @@ impl Volume {
             bounds,
             contents: Contents::Full,
         })
+    }
+}
+
+impl Debug for Volume {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        fn fmt(vol: &Volume, f: &mut Formatter<'_>, depth: usize) -> fmt::Result {
+            let prefix = "  ".repeat(depth);
+            write!(f, "{}vol {:?} ", prefix, vol.bounds)?;
+            if let Some((axis, split_idx)) = Volume::get_split(&vol.bounds) {
+                writeln!(f, "split: {:?} < {:?}", axis, split_idx)?;
+            } else {
+                writeln!(f, "leaf")?;
+            };
+            match &vol.contents {
+                Contents::Empty => writeln!(f, "{} Empty", prefix),
+                Contents::Full => writeln!(f, "{} Full", prefix),
+                Contents::Split((vol_a, vol_b)) => {
+                    writeln!(f, " Split left:")?;
+                    fmt(vol_a, f, depth + 1)?;
+                    writeln!(f, " Split right:")?;
+                    fmt(vol_b, f, depth + 1)?;
+                    Ok(())
+                }
+            }
+        }
+        fmt(self, f, 0)
+        //struct Volume {
+        //    bounds: Bounds,
+        //    contents: Contents,
+        //}
     }
 }
 
