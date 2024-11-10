@@ -97,16 +97,15 @@ fn main() {
 
     // Solve 19a
     let sol_19a: u64 = solve_part_a(&puzzle, &parts);
-    let correct_sol_19a: u64 = 19114;
-    //let correct_sol_19a: u64 = 532551;
+    let correct_sol_19a: u64 = 532551;
     println!("* 19a *");
     println!("My solution: {sol_19a}");
     println!("Correct solution: {correct_sol_19a}");
-    println!("Equal: {}\n", sol_19a == correct_sol_19a);
+    println!("Equal: {:?}\n", sol_19a.cmp(&correct_sol_19a));
 
     // Solve 19b
     let sol_19b: u64 = solve_part_b(&puzzle);
-    let correct_sol_19b: u64 = 167409079868000;
+    let correct_sol_19b: u64 = 134343280273968;
     println!("* 19b *");
     println!("My solution: {sol_19b}");
     println!("Correct solution: {correct_sol_19b}");
@@ -128,9 +127,6 @@ fn solve_part_a(puzzle: &Puzzle, parts: &[Part]) -> u64 {
 }
 
 fn solve_part_b(puzzle: &Puzzle) -> u64 {
-    let vol_full = puzzle.full_volume();
-    println!("vol_full:\n{:?}\n", vol_full);
-
     //println!("pos: {:?}", puzzle.pos[Axis::S as usize]);
     //
     //let [s2_left, s2_right] = Volume::halfspaces(&vol_full.bounds, Axis::S, 1);
@@ -143,14 +139,7 @@ fn solve_part_b(puzzle: &Puzzle) -> u64 {
     //println!("m2_left:\n{:?}\n", m2_left);
     //println!("m2_right:\n{:?}\n", m2_right);
 
-    println!("vol_full");
-    println!("- measure: {:?}", puzzle.measure(&vol_full));
-
-    let rect: Rect = izip!(&puzzle.pos, vol_full.bounds)
-        .map(|(pos, (min, max))| (pos[min], pos[max]))
-        .collect_vec()
-        .try_into()
-        .unwrap();
+    let rect: Rect = [(Pos(1), Pos(4001)); 4];
     //println!("rect: {:?}", rect);
     //println!("vol: {}", rect_vol(&rect));
     let vol_soln_2 = puzzle.accepts_vol(&rect, &puzzle.rule);
