@@ -10,6 +10,7 @@
 
 use advent_of_code_2023_in_rust::parse_regex::{parse_line, parse_lines};
 use itertools::{izip, Itertools};
+use num::CheckedSub;
 use regex::Regex;
 use std::array;
 use std::collections::{HashMap, HashSet};
@@ -64,6 +65,14 @@ struct Part([Pos; 4]);
 /// An axis-aligned bounding box indexing positions along each axis
 type Bounds = [(usize, usize); 4];
 
+type Rect = [(Pos, Pos); 4];
+
+fn rect_vol(rect: &Rect) -> u64 {
+    rect.iter()
+        .map(|(min_pos, max_pos)| (max_pos.0 as u64).checked_sub(min_pos.0 as u64).unwrap())
+        .product()
+}
+//
 // Represents a volume of space in the part lattice [1,4001)^4
 #[derive(PartialEq, Eq)]
 struct Volume {
@@ -96,8 +105,8 @@ fn main() {
     println!("Equal: {}\n", sol_19a == correct_sol_19a);
 
     // Solve 19b
-    let sol_19b: usize = solve_part_b(&puzzle);
-    let correct_sol_19b: usize = 167409079868000;
+    let sol_19b: u64 = solve_part_b(&puzzle);
+    let correct_sol_19b: u64 = 167409079868000;
     println!("* 19b *");
     println!("My solution: {sol_19b}");
     println!("Correct solution: {correct_sol_19b}");
@@ -118,7 +127,7 @@ fn solve_part_a(puzzle: &Puzzle, parts: &[Part]) -> u64 {
         .sum()
 }
 
-fn solve_part_b(puzzle: &Puzzle) -> usize {
+fn solve_part_b(puzzle: &Puzzle) -> u64 {
     let vol_full = puzzle.full_volume();
     println!("vol_full:\n{:?}\n", vol_full);
 
@@ -135,23 +144,38 @@ fn solve_part_b(puzzle: &Puzzle) -> usize {
     //println!("m2_right:\n{:?}\n", m2_right);
 
     println!("vol_full");
-    println!("- bounds: {:?}", vol_full.bounds);
-    println!("- idx_volume: {:?}", vol_full.idx_volume());
     println!("- measure: {:?}", puzzle.measure(&vol_full));
-    println!();
 
-    let vol_soln = puzzle.rule.intersect(&vol_full, 0);
+    let rect: Rect = izip!(&puzzle.pos, vol_full.bounds)
+        .map(|(pos, (min, max))| (pos[min], pos[max]))
+        .collect_vec()
+        .try_into()
+        .unwrap();
+    //println!("rect: {:?}", rect);
+    //println!("vol: {}", rect_vol(&rect));
+    let vol_soln_2 = puzzle.accepts_vol(&rect, &puzzle.rule);
 
-    println!("vol_soln");
-    println!("- bounds: {:?}", vol_soln.bounds);
-    println!("- idx_volume: {:?}", vol_soln.idx_volume());
-    println!("- measure: {:?}", puzzle.measure(&vol_soln));
-    println!();
+    //let rule = Rc::new(Rule::Split {
+    //    split_axis: Axis::X,
+    //    split_idx: 1,
+    //    children: [Rc::new(Rule::Accept), Rc::new(Rule::Accepnt)],
+    //});
+    //println!("pos: {:?}", puzzle.pos[Axis::X as usize][1]);
+    //println!("vol: {}", puzzle.accepts_vol(&rect, &rule));
+    //todo!("stop here");
 
-    let answer = puzzle.measure(&vol_soln);
+    //let vol_soln = puzzle.rule.intersect(&vol_full, 0);
 
-    println!("solve_part_b - Answer: {}", answer);
-    0
+    //println!("vol_soln");
+    //println!("- bounds: {:?}", vol_soln.bounds);
+    //println!("- idx_volume: {:?}", vol_soln.idx_volume());
+    //println!("- measure: {:?}", puzzle.measure(&vol_soln));
+    //println!();
+    //
+    //let answer = puzzle.measure(&vol_soln);
+
+    println!("solve_part_b - Answer: {}", vol_soln_2);
+    vol_soln_2
 }
 
 /// There are four axes in this puzzle, charmingly named 'x', 'm', 'a', and 's'.
@@ -276,6 +300,47 @@ impl Puzzle {
                     self.accepts_part(&children[0], part)
                 } else {
                     self.accepts_part(&children[1], part)
+                }
+            }
+        }
+    }
+
+    /// Returns the volume of the subspace of the bounds that this rule accepts
+    fn accepts_vol(&self, rect: &Rect, rule: &Rc<Rule>) -> u64 {
+        if rect_vol(rect) == 0 {
+            0
+        } else {
+            match &**rule {
+                Rule::Accept => rect_vol(rect),
+                Rule::Reject => 0,
+                Rule::Split {
+                    split_axis,
+                    split_idx,
+                    children,
+                } => {
+                    let split_axis = *split_axis as usize;
+                    let split_pos = self.pos[split_axis][*split_idx];
+                    //let split_pos = Pos(split_pos.0 + 1);
+
+                    let mut rect_left = *rect;
+                    assert!(rect_left == *rect);
+
+                    let mut rect_right = *rect;
+                    assert!(rect_right == *rect);
+
+                    rect_left[split_axis].1 = split_pos;
+                    assert!(rect_left != *rect);
+                    assert!(rect_right == *rect);
+
+                    rect_right[split_axis].0 = split_pos;
+                    assert!(rect_left != *rect);
+                    assert!(rect_right != *rect);
+                    assert!(rect_vol(&rect_left) + rect_vol(&rect_right) == rect_vol(rect));
+
+                    let vol_left = self.accepts_vol(&rect_left, &children[0]);
+                    let vol_right = self.accepts_vol(&rect_right, &children[1]);
+
+                    vol_left + vol_right
                 }
             }
         }
