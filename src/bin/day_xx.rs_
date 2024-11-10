@@ -10,7 +10,7 @@ fn main() {
     //println!("* 8a *");
     //println!("My solution: {sol_8a}");
     //println!("Correct solution: {correct_sol_8a}");
-    //println!("Equal: {}\n", sol_8a == correct_sol_8a);
+    //println!("Equal: {:?}\n", sol_19a.cmp(&correct_sol_19a));
     //
     //// Solve 8b
     //let sol_8b: usize = 56;
@@ -18,5 +18,5 @@ fn main() {
     //println!("* 8b *");
     //println!("My solution: {sol_8b}");
     //println!("Correct solution: {correct_sol_8b}");
-    //println!("Equal: {}\n", sol_8b == correct_sol_8b);
+    //println!("Equal: {:?}\n", sol_19b.cmp(&correct_sol_19b));
 }
