@@ -80,8 +80,6 @@ impl Rule {
         let workflow_regex = Regex::new(r"(\w+)\{(.+\,\w+)\}").unwrap();
         let raw_rules: HashMap<Workflow, &'static str> =
             parse_lines(workflow_regex, input).collect();
-        //let mut rules: HashMap<Workflow, Arc<Rule>> =
-        //    [("A", Arc::new(Rule::Accept)), ("R", Arc::new(Rule::Reject))].into();
         construct_rules("in", &raw_rules)
     }
 
@@ -119,12 +117,13 @@ impl Rule {
                 children,
             } => {
                 let mut rect_left = *rect;
-                let mut rect_right = *rect;
                 rect_left[*split_axis].1 = *split_pos;
-                rect_right[*split_axis].0 = *split_pos;
-
                 let vol_left = children[0].accepts_vol(&rect_left);
+
+                let mut rect_right = *rect;
+                rect_right[*split_axis].0 = *split_pos;
                 let vol_right = children[1].accepts_vol(&rect_right);
+
                 vol_left + vol_right
             }
         }
