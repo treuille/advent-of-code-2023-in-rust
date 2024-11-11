@@ -1,12 +1,9 @@
 use advent_of_code_2023_in_rust::parse_regex::{parse_line, parse_lines};
+use cached::proc_macro::cached;
+use cached::UnboundCache;
 use regex::Regex;
 use std::collections::HashMap;
-use std::rc::Rc;
-
-// Cleanup plan:
-// [ ] Simplify `Part`: type Part = [Dim; 4];
-// [ ] Remove and add back in the derive blocks
-// [ ] Remove comments
+use std::sync::Arc;
 
 /// The descriptor of a workflow
 type Workflow = &'static str;
@@ -20,7 +17,8 @@ type Axis = usize;
 /// A Part is a point in the 4D lattice [1,4001)^4
 type Part = [Dim; 4];
 
-/// TODO: Write a docstring
+/// An axis-aligned rectangle in the 4D lattice, defined by the minimum
+/// (inclusive) and maximum (exclusive) positions along each axis.
 type Rect = [(Dim, Dim); 4];
 
 /// A rule is part of a decision tree that either accepts or rejects parts
@@ -30,7 +28,7 @@ enum Rule {
     Split {
         split_axis: Axis,
         split_pos: Dim,
-        children: [Rc<Rule>; 2],
+        children: [Arc<Rule>; 2],
     },
 }
 
@@ -57,7 +55,7 @@ fn main() {
     println!("Equal: {:?}\n", sol_19b.cmp(&correct_sol_19b));
 }
 
-fn solve_part_a(rule: &Rc<Rule>, parts: &[Part]) -> u64 {
+fn solve_part_a(rule: &Arc<Rule>, parts: &[Part]) -> u64 {
     parts
         .iter()
         .filter_map(|part| {
@@ -71,64 +69,20 @@ fn solve_part_a(rule: &Rc<Rule>, parts: &[Part]) -> u64 {
         .sum()
 }
 
-fn solve_part_b(rule: &Rc<Rule>) -> Dim {
+fn solve_part_b(rule: &Arc<Rule>) -> Dim {
     let full_space: Rect = [(1, 4001); 4];
     rule.accepts_vol(&full_space)
 }
 
 impl Rule {
     /// Parse a string discripton of the puzzle
-    fn from_puzzle_str(input: &'static str) -> Rc<Rule> {
+    fn from_puzzle_str(input: &'static str) -> Arc<Rule> {
         let workflow_regex = Regex::new(r"(\w+)\{(.+\,\w+)\}").unwrap();
         let raw_rules: HashMap<Workflow, &'static str> =
             parse_lines(workflow_regex, input).collect();
-        let mut rules: HashMap<Workflow, Rc<Rule>> =
-            [("A", Rc::new(Rule::Accept)), ("R", Rc::new(Rule::Reject))].into();
-        Rule::construct_rules("in", &raw_rules, &mut rules)
-    }
-
-    /// Helper function for `from_puzzle_str` to recurvesly construct a tree of `Rc<Rule>`
-    fn construct_rules(
-        workflow: Workflow,
-        raw_rules: &HashMap<Workflow, &'static str>,
-        rc_rules: &mut HashMap<Workflow, Rc<Rule>>,
-    ) -> Rc<Rule> {
-        let rule_regex = Regex::new(r"([xmas])([<>])(\d+):(\w+)").unwrap();
-        match rc_rules.get(workflow) {
-            Some(rule) => Rc::clone(rule),
-            None => {
-                let mut rules: Vec<&str> = raw_rules.get(workflow).unwrap().split(",").collect();
-                let rule = &Rule::construct_rules(rules.pop().unwrap(), raw_rules, rc_rules);
-                let mut rule = Rc::clone(rule);
-                while let Some(rule_str) = rules.pop() {
-                    let (axis, order, split, next_workflow) = parse_line(&rule_regex, rule_str);
-                    let axis = match axis {
-                        'x' => 0,
-                        'm' => 1,
-                        'a' => 2,
-                        's' => 3,
-                        _ => panic!("Invalid axis: {}", axis),
-                    };
-                    let (reverse_children, split) = match order {
-                        '<' => (false, split),
-                        '>' => (true, split + 1),
-                        _ => panic!("Invalid order: {}", order),
-                    };
-                    let child_rule = Rule::construct_rules(next_workflow, raw_rules, rc_rules);
-                    rule = Rc::new(Rule::Split {
-                        split_axis: axis,
-                        split_pos: split,
-                        children: if reverse_children {
-                            [rule, child_rule]
-                        } else {
-                            [child_rule, rule]
-                        },
-                    });
-                }
-                rc_rules.insert(workflow, Rc::clone(&rule));
-                rule
-            }
-        }
+        //let mut rules: HashMap<Workflow, Arc<Rule>> =
+        //    [("A", Arc::new(Rule::Accept)), ("R", Arc::new(Rule::Reject))].into();
+        construct_rules("in", &raw_rules)
     }
 
     /// Returns true if the rule accepts the part
@@ -175,6 +129,51 @@ impl Rule {
             }
         }
     }
+}
+
+/// Helper function for `from_puzzle_str` to recurvesly construct a tree of `Arc<Rule>`
+#[cached(
+    ty = "UnboundCache<String, Arc<Rule>>", // Specify the type of cache here
+    create = "{ UnboundCache::new() }", // Initialize cache as
+    convert = r#"{ workflow.to_owned() }"#,
+)]
+fn construct_rules(workflow: Workflow, raw_rules: &HashMap<Workflow, &'static str>) -> Arc<Rule> {
+    if workflow == "A" {
+        return Arc::new(Rule::Accept);
+    } else if workflow == "R" {
+        return Arc::new(Rule::Reject);
+    }
+    let rule_regex = Regex::new(r"([xmas])([<>])(\d+):(\w+)").unwrap();
+    let mut rules: Vec<&str> = raw_rules.get(workflow).unwrap().split(",").collect();
+    let fallback_workflow = rules.pop().unwrap();
+    let rule = &construct_rules(fallback_workflow, raw_rules);
+    let mut rule = Arc::clone(rule);
+    while let Some(rule_str) = rules.pop() {
+        let (axis, order, split, next_workflow) = parse_line(&rule_regex, rule_str);
+        let axis = match axis {
+            'x' => 0,
+            'm' => 1,
+            'a' => 2,
+            's' => 3,
+            _ => panic!("Invalid axis: {}", axis),
+        };
+        let (reverse_children, split) = match order {
+            '<' => (false, split),
+            '>' => (true, split + 1),
+            _ => panic!("Invalid order: {}", order),
+        };
+        let child_rule = construct_rules(next_workflow, raw_rules);
+        rule = Arc::new(Rule::Split {
+            split_axis: axis,
+            split_pos: split,
+            children: if reverse_children {
+                [rule, child_rule]
+            } else {
+                [child_rule, rule]
+            },
+        });
+    }
+    rule
 }
 
 /// Converts a list of parts in to a Vec<Part>
