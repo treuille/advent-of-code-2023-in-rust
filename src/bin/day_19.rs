@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use std::rc::Rc;
 
 // Cleanup plan:
-// [ ] Remove `Axis` type: type Axis = usize;
+// [ ] Simplify `Part`: type Part = [Dim; 4];
 // [ ] Remove and add back in the derive blocks
 // [ ] Remove comments
 
@@ -15,20 +15,14 @@ type Workflow = &'static str;
 /// The type of points along each of the axes of the 4D lattice
 type Dim = u64;
 
+/// We index the into 4 axes using `usize`
+type Axis = usize;
+
 /// A Part is a point in the 4D lattice [1,4001)^4
 #[derive(Debug)]
 struct Part([Dim; 4]);
 
 type Rect = [(Dim, Dim); 4];
-
-/// We are in a 4-dimensional space with axes labels as follows:
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum Axis {
-    X = 0,
-    M,
-    A,
-    S,
-}
 
 /// A rule is part of a decision tree that either accepts or rejects parts
 enum Rule {
@@ -45,7 +39,7 @@ fn main() {
     let input = include_str!("../../puzzle_inputs/day_19.txt");
     let (puzzle, parts) = input.split_once("\n\n").unwrap();
     let rule = Rule::from_puzzle_str(puzzle);
-    let parts = Part::from_str(parts);
+    let parts = parts_from_str(parts);
 
     // Solve 19a
     let sol_19a: Dim = solve_part_a(&rule, &parts);
@@ -64,12 +58,13 @@ fn main() {
     println!("Equal: {:?}\n", sol_19b.cmp(&correct_sol_19b));
 }
 
-fn solve_part_a(rule: &Rc<Rule>, parts: &[Part]) -> Dim {
+fn solve_part_a(rule: &Rc<Rule>, parts: &[Part]) -> u64 {
     parts
         .iter()
         .filter_map(|part| {
             if rule.accepts_part(part) {
-                Some(part.score())
+                let part_score: u64 = part.0.iter().sum();
+                Some(part_score)
             } else {
                 None
             }
@@ -82,21 +77,6 @@ fn solve_part_b(rule: &Rc<Rule>) -> Dim {
     rule.accepts_vol(&full_space)
 }
 
-/// There are four axes in this puzzle, charmingly named 'x', 'm', 'a', and 's'.
-impl Axis {
-    /// Parses an axis from one of the characters: 'x', 'm', 'a', 's'
-    fn from_char(c: char) -> Self {
-        match c {
-            'x' => Axis::X,
-            'm' => Axis::M,
-            'a' => Axis::A,
-            's' => Axis::S,
-            _ => panic!("Invalid axis: {}", c),
-        }
-    }
-}
-
-// !! NOW we'll try to remove the intermediate data structure
 impl Rule {
     /// Parse a string discripton of the puzzle
     fn from_puzzle_str(input: &'static str) -> Rc<Rule> {
@@ -123,7 +103,13 @@ impl Rule {
                 let mut rule = Rc::clone(rule);
                 while let Some(rule_str) = rules.pop() {
                     let (axis, order, split, next_workflow) = parse_line(&rule_regex, rule_str);
-                    let axis = Axis::from_char(axis);
+                    let axis = match axis {
+                        'x' => 0,
+                        'm' => 1,
+                        'a' => 2,
+                        's' => 3,
+                        _ => panic!("Invalid axis: {}", axis),
+                    };
                     let (reverse_children, split) = match order {
                         '<' => (false, split),
                         '>' => (true, split + 1),
@@ -156,9 +142,8 @@ impl Rule {
                 split_pos,
                 children,
             } => {
-                let part_pos = part.0[*split_axis as usize];
-                let rule_pos = *split_pos;
-                if part_pos < rule_pos {
+                let part_pos = part.0[*split_axis];
+                if part_pos < *split_pos {
                     children[0].accepts_part(part)
                 } else {
                     children[1].accepts_part(part)
@@ -182,8 +167,8 @@ impl Rule {
             } => {
                 let mut rect_left = *rect;
                 let mut rect_right = *rect;
-                rect_left[*split_axis as usize].1 = *split_pos;
-                rect_right[*split_axis as usize].0 = *split_pos;
+                rect_left[*split_axis].1 = *split_pos;
+                rect_right[*split_axis].0 = *split_pos;
 
                 let vol_left = children[0].accepts_vol(&rect_left);
                 let vol_right = children[1].accepts_vol(&rect_right);
@@ -193,15 +178,10 @@ impl Rule {
     }
 }
 
-impl Part {
-    fn from_str(input: &'static str) -> Vec<Self> {
-        let part_regex = Regex::new(r"\{x=(\d+),m=(\d+),a=(\d+),s=(\d+)\}").unwrap();
-        parse_lines(part_regex, input)
-            .map(|(x_pos, m_pos, a_pos, s_pos)| Part([x_pos, m_pos, a_pos, s_pos]))
-            .collect()
-    }
-
-    fn score(&self) -> Dim {
-        self.0.iter().sum()
-    }
+/// Converts a list of parts in to a Vec<Part>
+fn parts_from_str(input: &'static str) -> Vec<Part> {
+    let part_regex = Regex::new(r"\{x=(\d+),m=(\d+),a=(\d+),s=(\d+)\}").unwrap();
+    parse_lines(part_regex, input)
+        .map(|(x_pos, m_pos, a_pos, s_pos)| Part([x_pos, m_pos, a_pos, s_pos]))
+        .collect()
 }
