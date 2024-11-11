@@ -149,27 +149,23 @@ fn construct_rules(workflow: Workflow, raw_rules: &HashMap<Workflow, &'static st
     let mut rule = Arc::clone(rule);
     while let Some(rule_str) = rules.pop() {
         let (axis, order, split, next_workflow) = parse_line(&rule_regex, rule_str);
-        let axis = match axis {
+        let split_axis = match axis {
             'x' => 0,
             'm' => 1,
             'a' => 2,
             's' => 3,
             _ => panic!("Invalid axis: {}", axis),
         };
-        let (reverse_children, split) = match order {
-            '<' => (false, split),
-            '>' => (true, split + 1),
+        let child_rule = construct_rules(next_workflow, raw_rules);
+        let (split_pos, children) = match order {
+            '<' => (split, [child_rule, rule]),
+            '>' => (split + 1, [rule, child_rule]),
             _ => panic!("Invalid order: {}", order),
         };
-        let child_rule = construct_rules(next_workflow, raw_rules);
         rule = Arc::new(Rule::Split {
-            split_axis: axis,
-            split_pos: split,
-            children: if reverse_children {
-                [rule, child_rule]
-            } else {
-                [child_rule, rule]
-            },
+            split_axis,
+            split_pos,
+            children,
         });
     }
     rule
