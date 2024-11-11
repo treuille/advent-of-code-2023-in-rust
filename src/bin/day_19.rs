@@ -1,7 +1,6 @@
 use advent_of_code_2023_in_rust::parse_regex::{parse_line, parse_lines};
 use regex::Regex;
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::rc::Rc;
 
 // Cleanup plan:
@@ -19,9 +18,9 @@ type Dim = u64;
 type Axis = usize;
 
 /// A Part is a point in the 4D lattice [1,4001)^4
-#[derive(Debug)]
-struct Part([Dim; 4]);
+type Part = [Dim; 4];
 
+/// TODO: Write a docstring
 type Rect = [(Dim, Dim); 4];
 
 /// A rule is part of a decision tree that either accepts or rejects parts
@@ -63,7 +62,7 @@ fn solve_part_a(rule: &Rc<Rule>, parts: &[Part]) -> u64 {
         .iter()
         .filter_map(|part| {
             if rule.accepts_part(part) {
-                let part_score: u64 = part.0.iter().sum();
+                let part_score: u64 = part.iter().sum();
                 Some(part_score)
             } else {
                 None
@@ -142,7 +141,7 @@ impl Rule {
                 split_pos,
                 children,
             } => {
-                let part_pos = part.0[*split_axis];
+                let part_pos = part[*split_axis];
                 if part_pos < *split_pos {
                     children[0].accepts_part(part)
                 } else {
@@ -182,6 +181,6 @@ impl Rule {
 fn parts_from_str(input: &'static str) -> Vec<Part> {
     let part_regex = Regex::new(r"\{x=(\d+),m=(\d+),a=(\d+),s=(\d+)\}").unwrap();
     parse_lines(part_regex, input)
-        .map(|(x_pos, m_pos, a_pos, s_pos)| Part([x_pos, m_pos, a_pos, s_pos]))
+        .map(|(x_pos, m_pos, a_pos, s_pos)| [x_pos, m_pos, a_pos, s_pos])
         .collect()
 }
