@@ -107,3 +107,8 @@ stdio = "inherit"
 name = "day_19"
 trigger = { on = "src/bin/day_19.rs" }
 stdio = "inherit"
+
+[[process]]
+name = "day_20"
+trigger = { on = "src/bin/day_20.rs" }
+stdio = "inherit"
