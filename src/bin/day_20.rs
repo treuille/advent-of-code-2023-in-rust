@@ -86,9 +86,11 @@ fn main() {
 
     // Let's run the simulation `n_sims` times
     let mut pulse_count = [0u64; 2];
-    let n_sims = 1000;
+    let n_sims: i64 = 100000000;
     for sim in 0..n_sims {
-        println!("\nSIM: {}\n", sim);
+        if sim % (n_sims / 100) == 0 {
+            println!("sim: {}", sim);
+        }
         let mut pulses: VecDeque<PulseMessage> = [PulseMessage {
             pulse: Pulse::Low,
             from: BUTTON,
@@ -96,11 +98,16 @@ fn main() {
         }]
         .into();
         while let Some(pulse_message) = pulses.pop_front() {
-            // debug - begin - print the puse message
-            println!("{:?} ", pulse_message);
-            // debug - end
+            //// debug - begin - print the puse message
+            //println!("{:?} ", pulse_message);
+            //// debug - end
 
             let PulseMessage { pulse, from, to } = pulse_message;
+
+            if pulse == Pulse::Low && to == "rx" {
+                println!("on iter {} pulse is low and to is rx", sim);
+                break;
+            }
 
             // Add in the pulse count
             pulse_count[pulse as usize] += 1;
