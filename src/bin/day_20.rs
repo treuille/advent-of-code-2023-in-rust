@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, dead_code)]
+#![allow(unused_mut, unused_variables, dead_code, unused_imports)]
 
 use advent_of_code_2023_in_rust::parse_regex::parse_lines;
 use itertools::Itertools;
@@ -9,7 +9,7 @@ use std::fmt::{Debug, Formatter};
 
 type ModuleName = &'static str;
 
-const BUTTON: ModuleName = "<button>";
+const BUTTON: ModuleName = "button";
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Pulse {
@@ -38,7 +38,9 @@ enum ModuleType {
 
 fn main() {
     // Parse the input
-    let input = include_str!("../../puzzle_inputs/day_20_test_00.txt");
+    //let input = include_str!("../../puzzle_inputs/day_20_test_00.txt");
+    //let input = include_str!("../../puzzle_inputs/day_20_test_01.txt");
+    let input = include_str!("../../puzzle_inputs/day_20.txt");
     println!("input len: {}", input.len());
     println!("input:\n{}", input);
 
@@ -66,68 +68,78 @@ fn main() {
             (module_name, module)
         })
         .collect();
-    println!("input:\n{:?}", input);
 
-    // Let's run the simulation once
-    let mut pulse_count = [0u64; 2];
-    let mut pulses: VecDeque<PulseMessage> = [PulseMessage {
-        pulse: Pulse::Low,
-        from: BUTTON,
-        to: "broadcaster",
-    }]
-    .into();
-    let mut iter = 0;
-    while let Some(pulse_message) = pulses.pop_front() {
-        // debug - begin - print the puse message
-        println!("{:?} ", pulse_message);
-        // debug - end
-
-        let PulseMessage { pulse, from, to } = pulse_message;
-
-        // Add in the pulse count
-        pulse_count[pulse as usize] += 1;
-
-        let module = input.get_mut(to).unwrap();
-        let next_pulse = match &mut module.module_type {
-            ModuleType::Default => pulse,
-            ModuleType::FlipFlop(state) => match pulse {
-                Pulse::Low => {
-                    let flipped = state.flip();
-                    module.module_type = ModuleType::FlipFlop(flipped);
-                    flipped
-                }
-                Pulse::High => *state,
-            },
-            ModuleType::Conjunction(pulses) => {
-                pulses.insert(from, pulse);
-                match pulses.values().all(|&p| p == Pulse::High) {
-                    true => Pulse::Low,
-                    false => Pulse::High,
-                }
+    // Initialize all the conjunction states
+    let all_outputs: Vec<(ModuleName, Vec<ModuleName>)> = input
+        .iter()
+        .map(|(module_name, module)| (*module_name, module.outputs.clone()))
+        .collect_vec();
+    for (module_name, outputs) in all_outputs.iter() {
+        for conjunction_name in outputs.iter() {
+            if let Some(ModuleType::Conjunction(pulses)) =
+                input.get_mut(conjunction_name).map(|m| &mut m.module_type)
+            {
+                pulses.insert(module_name, Pulse::Low);
             }
-        };
-
-        // Add the next pulse to the queue
-        for output in &module.outputs {
-            pulses.push_back(PulseMessage {
-                pulse: next_pulse,
-                from: to,
-                to: output,
-            });
-        }
-
-        // debug - begin - print the pulses
-        for pulse in &pulses {
-            println!(" - {:?} ", pulse);
-        }
-        // debug - end
-
-        // debug - begin - prevent an infinite loop
-        iter += 1;
-        if iter > 20 {
-            break;
         }
     }
+
+    // Let's run the simulation `n_sims` times
+    let mut pulse_count = [0u64; 2];
+    let n_sims = 1000;
+    for sim in 0..n_sims {
+        println!("\nSIM: {}\n", sim);
+        let mut pulses: VecDeque<PulseMessage> = [PulseMessage {
+            pulse: Pulse::Low,
+            from: BUTTON,
+            to: "broadcaster",
+        }]
+        .into();
+        while let Some(pulse_message) = pulses.pop_front() {
+            // debug - begin - print the puse message
+            println!("{:?} ", pulse_message);
+            // debug - end
+
+            let PulseMessage { pulse, from, to } = pulse_message;
+
+            // Add in the pulse count
+            pulse_count[pulse as usize] += 1;
+
+            if let Some(module) = input.get_mut(to) {
+                let next_pulse = match &mut module.module_type {
+                    ModuleType::Default => Some(pulse),
+                    ModuleType::FlipFlop(state) => match pulse {
+                        Pulse::Low => {
+                            *state = state.flip();
+                            Some(*state)
+                        }
+                        Pulse::High => None,
+                    },
+                    ModuleType::Conjunction(pulses) => {
+                        pulses.insert(from, pulse);
+                        match pulses.values().all(|&p| p == Pulse::High) {
+                            true => Some(Pulse::Low),
+                            false => Some(Pulse::High),
+                        }
+                    }
+                };
+
+                // Add the next pulse to the queue
+                if let Some(next_pulse) = next_pulse {
+                    for output in &module.outputs {
+                        pulses.push_back(PulseMessage {
+                            pulse: next_pulse,
+                            from: to,
+                            to: output,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    println!("\nFINISHED:");
+    println!("pulse_count: {:?}", pulse_count);
+    println!("answer: {}", pulse_count[0] * pulse_count[1]);
 }
 
 impl Pulse {
