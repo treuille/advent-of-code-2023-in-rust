@@ -1,17 +1,24 @@
-#![allow(unused_mut, unused_variables, dead_code, unused_imports)]
+#![allow(
+    unused_mut,
+    unused_variables,
+    dead_code,
+    unused_imports,
+    unreachable_code
+)]
 
 use advent_of_code_2023_in_rust::parse_regex::parse_lines;
 use itertools::Itertools;
 use regex::Regex;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::fmt::{Debug, Formatter};
+use std::hash::Hash;
 
 type ModuleName = &'static str;
 
 const BUTTON: ModuleName = "button";
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 enum Pulse {
     Low = 0,
     High,
@@ -23,13 +30,13 @@ struct PulseMessage {
     to: ModuleName,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 struct Module {
     outputs: Vec<ModuleName>,
     module_type: ModuleType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 enum ModuleType {
     Default,
     FlipFlop(Pulse),
@@ -38,9 +45,9 @@ enum ModuleType {
 
 fn main() {
     // Parse the input
-    //let input = include_str!("../../puzzle_inputs/day_20_test_00.txt");
-    //let input = include_str!("../../puzzle_inputs/day_20_test_01.txt");
-    let input = include_str!("../../puzzle_inputs/day_20.txt");
+    let input = include_str!("../../puzzle_inputs/day_20_test_00.txt");
+    let input = include_str!("../../puzzle_inputs/day_20_test_01.txt");
+    //let input = include_str!("../../puzzle_inputs/day_20.txt");
     println!("input len: {}", input.len());
     println!("input:\n{}", input);
 
@@ -84,13 +91,45 @@ fn main() {
         }
     }
 
+    // debug - begin - print out the module names and types
+    // Print out al the modules
+    for (module_name, module) in input.iter() {
+        println!("{:?} {:?}", module_name, module);
+    }
+
+    // For every module, store the set of states in which we found that module
+    let mut module_states: HashMap<ModuleName, HashMap<Module, HashSet<u64>>> = input
+        .keys()
+        .map(|module_name| (*module_name, HashMap::new()))
+        .collect();
+    // debug - end
+
     // Let's run the simulation `n_sims` times
     let mut pulse_count = [0u64; 2];
-    let n_sims: i64 = 100000000;
+    let n_sims: u64 = 1000;
     for sim in 0..n_sims {
-        if sim % (n_sims / 100) == 0 {
-            println!("sim: {}", sim);
+        // debug - begin
+        for (module_name, state_history) in module_states.iter_mut() {
+            let module = input.get(module_name).unwrap();
+            let previous_states = state_history
+                .entry(module.clone())
+                .or_insert(HashSet::new());
+            previous_states.insert(sim);
         }
+        // debug - end
+
+        //if sim % (n_sims / 100) == 0 {
+        println!("\n* SIM: {}", sim);
+        for module_name in module_states.keys().sorted() {
+            let state_history = module_states.get(module_name).unwrap();
+            let module = input.get(module_name).unwrap();
+            let mut previous_states: Vec<_> = state_history[module].iter().collect_vec();
+            previous_states.sort();
+            //println!("{:?} {:?} {:?}", module_name, module, previous_states);
+            println!("{:?} {:?}", module_name, previous_states);
+        }
+        //}
+
         let mut pulses: VecDeque<PulseMessage> = [PulseMessage {
             pulse: Pulse::Low,
             from: BUTTON,
@@ -143,6 +182,17 @@ fn main() {
                 }
             }
         }
+
+        // debug - begin
+        //println!("\n* SIM (again): {}", sim);
+        //for module_name in module_states.keys().sorted() {
+        //    let state_history = module_states.get(module_name).unwrap();
+        //    let module = input.get(module_name).unwrap();
+        //    let mut previous_states: Vec<_> = state_history[module].iter().collect_vec();
+        //    previous_states.sort();
+        //    println!("{:?} {:?} {:?}", module_name, module, previous_states);
+        //}
+        // debug - end
     }
     println!("\nFINISHED:");
     println!("pulse_count: {:?}", pulse_count);
@@ -165,6 +215,24 @@ impl Debug for PulseMessage {
             Pulse::High => "high",
         };
         write!(f, "{} -{}-> {}", self.from, pulse_str, self.to)
+    }
+}
+
+impl Hash for Module {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match &self.module_type {
+            ModuleType::Default => 0.hash(state),
+            ModuleType::FlipFlop(pulse) => {
+                1.hash(state);
+                pulse.hash(state)
+            }
+            ModuleType::Conjunction(pulses) => {
+                2.hash(state);
+                let mut conjuction_state = pulses.iter().collect_vec();
+                conjuction_state.sort();
+                conjuction_state.hash(state);
+            }
+        }
     }
 }
 
