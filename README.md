@@ -1,17 +1,17 @@
 # Advent of Code 2023 in Rust
 
-Working on solving AOC 2023 in my favorite language.
+Solutions to AOC 2023 in Rust
 
-## Todo
+## Goal
 
-### Completed
+The goal of each solution is:
 
-- Copy over lib.rs from 2022
-    - Get it to compile and for the tests to pass
-- Create the git repo
-    - Do the initial commit
+1. To be correct (obviously).
+* And to solve the problem in <1s on an M1 MacBook.
+2. To be easy and fun to read and exhibit idiomatic Rust.
+3. To share as much code between problems (a) and (b) to show the underlying structure
+   subtending both halves.
 
-### Outstanding
+## Note
 
-- Solve day 1
-
+I solved through 20a, but was not able to get 20b before I gave up.
